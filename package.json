@@ -1,0 +1,49 @@
+{
+  "name": "field-viewer",
+  "version": "0.1.0",
+  "description": "Client-side field model for inspecting electron and photon packets, antiparticles, and annihilation checks.",
+  "author": "Jonathan R Reed",
+  "license": "MIT",
+  "homepage": "https://field-veiwer.pages.dev/",
+  "keywords": [
+    "field-model",
+    "physics",
+    "react",
+    "vite",
+    "canvas"
+  ],
+  "packageManager": "bun@1.3.12",
+  "engines": {
+    "bun": ">=1.3.0",
+    "node": ">=22.12.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run build"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.7",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "typescript": "^5.7.3",
+    "vite": "^8.0.9",
+    "vitest": "^4.1.5"
+  }
+}
