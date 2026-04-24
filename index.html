@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Field Viewer — wave packets in the browser</title>
+    <meta
+      name="description"
+      content="A browser sketch of electron and photon fields. Drop packets, watch them move, check the conservation math when an electron and positron collide."
+    />
+    <meta name="author" content="Jonathan R Reed" />
+    <meta name="creator" content="Jonathan R Reed" />
+    <meta name="publisher" content="Jonathan R Reed" />
+    <meta name="application-name" content="Field Viewer" />
+    <meta
+      name="keywords"
+      content="Jonathan R Reed, Field Viewer, electron positron annihilation, physics simulation"
+    />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta name="theme-color" content="#050507" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="canonical" href="https://field-veiwer.pages.dev/" />
+    <link rel="author" href="https://jonathanrreed.com/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Field Viewer" />
+    <meta property="og:title" content="Field Viewer — wave packets in the browser" />
+    <meta
+      property="og:description"
+      content="A browser sketch of electron and photon fields. Drop packets, watch them move, check the conservation math when an electron and positron collide."
+    />
+    <meta property="og:url" content="https://field-veiwer.pages.dev/" />
+    <meta property="og:image" content="https://field-veiwer.pages.dev/og-card.svg" />
+    <meta property="article:author" content="https://jonathanrreed.com/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Field Viewer — wave packets in the browser" />
+    <meta
+      name="twitter:description"
+      content="A browser sketch of electron and photon fields. Drop packets, watch them move, check the conservation math when an electron and positron collide."
+    />
+    <meta name="twitter:image" content="https://field-veiwer.pages.dev/og-card.svg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Person",
+            "@id": "https://jonathanrreed.com/#person",
+            "name": "Jonathan R Reed",
+            "url": "https://jonathanrreed.com/",
+            "jobTitle": "AI Security Engineer and Product Engineer",
+            "sameAs": [
+              "https://jonathanrreed.com/",
+              "https://github.com/JonathanRReed"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://field-veiwer.pages.dev/#website",
+            "name": "Field Viewer",
+            "url": "https://field-veiwer.pages.dev/",
+            "creator": {
+              "@id": "https://jonathanrreed.com/#person"
+            },
+            "inLanguage": "en-US"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://field-veiwer.pages.dev/#app",
+            "name": "Field Viewer",
+            "url": "https://field-veiwer.pages.dev/",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Web",
+            "isAccessibleForFree": true,
+            "about": [
+              "quantum field visualization",
+              "electron positron annihilation",
+              "conservation of energy and momentum"
+            ],
+            "creator": {
+              "@id": "https://jonathanrreed.com/#person"
+            },
+            "description": "A browser sketch of electron and photon fields with conservation checks for electron-positron annihilation."
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div id="root">
+      <main id="main-content">
+        <h1>Field Viewer</h1>
+        <p>
+          A browser sketch of electron and photon fields. Drop packets, watch them move,
+          and check the conservation math when an electron and positron collide.
+        </p>
+        <nav aria-label="Field Viewer sections">
+          <a href="#main-content">Lab</a>
+          <a href="#main-content">About</a>
+        </nav>
+        <section>
+          <h2>What it does</h2>
+          <ul>
+            <li>Particles are wave packets on fields, not little balls.</li>
+            <li>Every electron is the same field excitation; only position and momentum differ.</li>
+            <li>Positrons are the same field with opposite charge.</li>
+            <li>When an electron and positron meet, they turn into two photons.</li>
+          </ul>
+        </section>
+        <p>Enable JavaScript to run the simulation.</p>
+      </main>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

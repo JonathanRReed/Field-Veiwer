@@ -1,0 +1,17 @@
+{
+  "name": "Field Viewer",
+  "short_name": "Field Viewer",
+  "description": "A browser sketch of electron and photon fields by Jonathan R Reed.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050507",
+  "theme_color": "#050507",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
