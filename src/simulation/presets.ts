@@ -21,7 +21,7 @@ export const presetSummaries: { [key: string]: string[] } = {
   ],
   mirror: [
     'Electron and positron have opposite charge, same mass and spin.',
-    'The way the packet faces is just for looks — charge is stored in the data.'
+    'The way the packet faces is just for looks; charge is stored in the data.'
   ],
   annihilation: [
     'Crash an electron into a positron and read the conservation panel.',
