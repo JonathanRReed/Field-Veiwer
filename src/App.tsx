@@ -905,7 +905,7 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
     <section className="about-brief" aria-label="What this is">
       <p>
         Field Viewer is a sketch, not a solver. It draws excitations on a shared canvas
-        so you can read charge, momentum, and field identity directly — no textbook required.
+        so you can read charge, momentum, and field identity directly, no textbook required.
       </p>
     </section>
 

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Field Viewer</title>
+  <desc id="desc">A dark field workstation preview with electron, positron, and photon wave packet traces.</desc>
+  <defs>
+    <radialGradient id="wash" cx="50%" cy="46%" r="68%">
+      <stop offset="0" stop-color="#102335" />
+      <stop offset=".58" stop-color="#050a11" />
+      <stop offset="1" stop-color="#02040a" />
+    </radialGradient>
+    <linearGradient id="meshA" x1="120" y1="130" x2="1060" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8cf0d4" stop-opacity=".08" />
+      <stop offset=".5" stop-color="#8cf0d4" stop-opacity=".7" />
+      <stop offset="1" stop-color="#8cf0d4" stop-opacity=".1" />
+    </linearGradient>
+    <linearGradient id="meshB" x1="140" y1="345" x2="1050" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f5c77a" stop-opacity=".08" />
+      <stop offset=".5" stop-color="#f5c77a" stop-opacity=".68" />
+      <stop offset="1" stop-color="#f5c77a" stop-opacity=".1" />
+    </linearGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="13" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#wash)" />
+  <g opacity=".42">
+    <path d="M118 204c168-78 348-84 544-17 154 52 285 54 416-18" fill="none" stroke="url(#meshA)" stroke-width="2" />
+    <path d="M122 242c176-70 350-72 520-12 174 61 318 64 438-4" fill="none" stroke="url(#meshA)" stroke-width="2" />
+    <path d="M134 432c166-64 338-70 520-12 176 56 318 55 426-12" fill="none" stroke="url(#meshB)" stroke-width="2" />
+    <path d="M132 470c170-58 338-62 508-8 170 54 310 58 438-2" fill="none" stroke="url(#meshB)" stroke-width="2" />
+  </g>
+  <g filter="url(#softGlow)">
+    <circle cx="826" cy="210" r="24" fill="#8cf0d4" />
+    <circle cx="932" cy="238" r="24" fill="#ff7aa8" />
+    <circle cx="860" cy="444" r="20" fill="#f5c77a" />
+    <circle cx="976" cy="404" r="20" fill="#f5c77a" />
+  </g>
+  <path d="M803 214h46M909 238h46M932 215v46M838 444h44M954 404h44" stroke="#03060c" stroke-width="7" stroke-linecap="round" opacity=".85" />
+  <g transform="translate(92 104)">
+    <text x="0" y="0" fill="#8cf0d4" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" letter-spacing="7">FIELD VIEWER</text>
+    <text x="0" y="92" fill="#e7ecf1" font-family="Georgia, Times New Roman, serif" font-size="82">Wave packets,</text>
+    <text x="0" y="176" fill="#e7ecf1" font-family="Georgia, Times New Roman, serif" font-size="82">not particles.</text>
+    <text x="0" y="246" fill="rgba(231,236,241,.72)" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="30">Inspect electron, positron, and photon fields in the browser.</text>
+    <text x="0" y="300" fill="rgba(231,236,241,.5)" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24">Client-side physics sketch by Jonathan R Reed</text>
+  </g>
+</svg>

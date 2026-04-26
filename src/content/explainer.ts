@@ -106,7 +106,7 @@ export const presetGuides: Record<PresetId, PresetGuide> = {
     checks: [
       'All electrons share the same mass, charge, and spin.',
       'Only momentum and position change between them.',
-      'No hidden “identity” tag — just state variables.'
+      'No hidden "identity" tag, just state variables.'
     ]
   },
   mirror: {
@@ -142,10 +142,10 @@ export const presetGuides: Record<PresetId, PresetGuide> = {
 }
 
 export const limitationStatements: string[] = [
-  'No Pauli exclusion — electrons can overlap freely.',
+  'No Pauli exclusion, electrons can overlap freely.',
   'No scattering, polarization, pair production, or higher-order processes.',
   'Motion is deterministic and simplified, not a real field equation.',
-  'No backend solver — this is a rendered analogy, not a numerical method.'
+  'No backend solver, this is a rendered analogy, not a numerical method.'
 ]
 
 export const requiredStatements: string[] = [
