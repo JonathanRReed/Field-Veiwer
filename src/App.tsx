@@ -1,38 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { FieldStage } from './components/FieldStage'
-import type { StagePointerEvent } from './components/FieldStage'
-import {
-  clearAll,
-  moveExcitation,
-  selectExcitation,
-  spawnExcitation,
-  stepSimulation,
-  updateExcitationMomentum
-} from './simulation/engine'
-import { getPreset, defaultPresetId } from './simulation/presets'
-import {
-  DEFAULT_ANNIHILATION_DISTANCE,
-  DEFAULT_ANNIHILATION_MODE,
-  DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE_DEGREES,
-  DEFAULT_SIMULATION_STEP
-} from './simulation/constants'
 import {
   computeEnergy,
   computeKineticEnergy,
   computeLorentzGamma
 } from './simulation/physics'
-import type {
-  AnnihilationMode,
-  DragPreview,
-  SimulationState,
-  Vec2
-} from './types/particle'
+import {
+  DEFAULT_ANNIHILATION_MODE,
+  DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE_DEGREES
+} from './simulation/constants'
+import type { AnnihilationMode, Vec2 } from './types/particle'
 import type { PresetId } from './types/simulation'
-import { magnitude, scale, sub } from './utils/vector'
 import { formatNumber, formatSignedNumber } from './utils/format'
-import type { SlabKey } from './rendering/fieldRenderer'
 import { limitationStatements, presetGuides, requiredStatements } from './content/explainer'
+import { gameLoop } from './engine/gameLoopSingleton'
+import type { GameLoopUIState } from './engine/gameLoop'
 
 // ---------------------------------------------------------------------------
 // Tooling
@@ -54,15 +37,8 @@ const PRESETS: { id: PresetId; label: string }[] = [
   { id: 'annihilation', label: 'Annihilation' }
 ]
 
-// Physics simulation cadence
-const FIXED_SIM_DT = 1 / 120
-const MAX_SUBSTEPS = 12
-const MAX_FRAME_DT = 1 / 20
-const MIN_FRAME_DT = 1 / 240
-const DRAG_SCALE = 2.2
-const DRAG_MAX_MAG = 2.3
-const DRAG_ZERO_MAG = 0.004
 const MOMENTUM_EDIT_STEP = 0.05
+const DRAG_MAX_MAG = 2.3
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
@@ -102,17 +78,9 @@ const cycleDialogFocus = (event: ReactKeyboardEvent, root: HTMLElement | null) =
   }
 }
 
-const momentumFromPreview = (preview: DragPreview): Vec2 => {
-  const raw = sub(preview.end, preview.start)
-  const scaled = scale(raw, DRAG_SCALE)
-  const mag = magnitude(scaled)
-  if (mag <= DRAG_MAX_MAG || mag === 0) return scaled
-  return scale(scaled, DRAG_MAX_MAG / mag)
-}
-
 const degreesFromMomentum = (momentum: Vec2): number => {
-  const mag = magnitude(momentum)
-  if (mag <= DRAG_ZERO_MAG) return 0
+  const mag = Math.hypot(momentum.x, momentum.y)
+  if (mag <= 0.004) return 0
   return (Math.atan2(momentum.y, momentum.x) * 180) / Math.PI
 }
 
@@ -129,23 +97,8 @@ const momentumFromPolar = (speed: number, degrees: number): Vec2 => {
   }
 }
 
-const canSpawnInPanel = (tool: Tool, panel: SlabKey): boolean => {
-  if (tool === 'select') return false
-  if (tool === 'photon') return panel === 'photon'
-  return panel === 'electron'
-}
-
-const toolToSpawn = (
-  tool: Tool
-): 'spawn-electron' | 'spawn-positron' | 'spawn-photon' | null => {
-  if (tool === 'electron') return 'spawn-electron'
-  if (tool === 'positron') return 'spawn-positron'
-  if (tool === 'photon') return 'spawn-photon'
-  return null
-}
-
 // ---------------------------------------------------------------------------
-// Inline icons, keep dependency footprint zero.
+// Inline icons
 // ---------------------------------------------------------------------------
 
 const Icon = {
@@ -204,8 +157,7 @@ const REAL_CONSTANTS = {
 
 export default function App() {
   const [view, setView] = useState<AppView>('lab')
-  const [state, setState] = useState<SimulationState>(() => getPreset(defaultPresetId).state)
-  const [presetId, setPresetId] = useState<PresetId>(defaultPresetId)
+  const [presetId, setPresetId] = useState<PresetId>('annihilation')
   const [running, setRunning] = useState(false)
   const [timeScale, setTimeScale] = useState(1)
   const [tool, setTool] = useState<Tool>('select')
@@ -215,8 +167,7 @@ export default function App() {
   const [annihilationAngleDegrees, setAnnihilationAngleDegrees] = useState(
     DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE_DEGREES
   )
-  const [preview, setPreview] = useState<DragPreview | null>(null)
-  const [hoverPanel, setHoverPanel] = useState<SlabKey | null>(null)
+  const [uiState, setUiState] = useState<GameLoopUIState | null>(null)
   const [coachDismissed, setCoachDismissed] = useState(() => {
     try {
       if (window.matchMedia('(max-width: 520px)').matches) return true
@@ -234,259 +185,108 @@ export default function App() {
     }
   }
 
-  const stateRef = useRef(state)
-  const previewRef = useRef<DragPreview | null>(null)
-  const trailsRef = useRef<Map<string, Vec2[]>>(new Map())
-  const frameAccumulatorRef = useRef(0)
-  const dragPacketRef = useRef<{ id: string; panel: SlabKey } | null>(null)
-
+  // Subscribe to gameLoop events
   useEffect(() => {
-    stateRef.current = state
-  }, [state])
-
-  const annihilationAngleRadians = (annihilationAngleDegrees * Math.PI) / 180
-  const simulationOptions = useMemo(
-    () => ({
-      annihilationDistance: DEFAULT_ANNIHILATION_DISTANCE,
-      annihilationMode,
-      annihilationScatteringAngle: annihilationAngleRadians
-    }),
-    [annihilationMode, annihilationAngleRadians]
-  )
-
-  // Play-loop with fixed-dt substepping.
-  useEffect(() => {
-    if (!running) return undefined
-    let previous = performance.now()
-    let raf = 0
-    const tick = (now: number) => {
-      const dt = (now - previous) / 1000
-      previous = now
-      const frame = Math.min(MAX_FRAME_DT, Math.max(MIN_FRAME_DT, dt * timeScale))
-      frameAccumulatorRef.current += frame
-      let substeps = 0
-      let next = stateRef.current
-      while (frameAccumulatorRef.current >= FIXED_SIM_DT && substeps < MAX_SUBSTEPS) {
-        frameAccumulatorRef.current -= FIXED_SIM_DT
-        next = stepSimulation(next, FIXED_SIM_DT, simulationOptions)
-        substeps += 1
-      }
-      if (substeps === MAX_SUBSTEPS) frameAccumulatorRef.current = 0
-      if (substeps > 0) {
-        stateRef.current = next
-        setState(next)
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
+    const onRunning = (r: boolean) => setRunning(r)
+    const onState = (s: GameLoopUIState) => setUiState(s)
+    gameLoop.onRunningChange(onRunning)
+    gameLoop.onStateChange(onState)
+    // Sync initial settings
+    gameLoop.setTimeScale(timeScale)
+    gameLoop.setShowTraces(showTraces)
+    gameLoop.setTool(tool)
+    gameLoop.setAnnihilationMode(annihilationMode)
+    gameLoop.setAnnihilationAngleDegrees(annihilationAngleDegrees)
     return () => {
-      cancelAnimationFrame(raf)
-      frameAccumulatorRef.current = 0
+      gameLoop.offRunningChange(onRunning)
+      gameLoop.offStateChange(onState)
     }
-  }, [running, simulationOptions, timeScale])
-
-  // Maintain ghost trails for traces toggle.
-  useEffect(() => {
-    if (!showTraces) {
-      trailsRef.current.clear()
-      return
-    }
-    const next = new Map<string, Vec2[]>()
-    state.excitations.forEach((e) => {
-      if (!e.alive) return
-      const prior = trailsRef.current.get(e.id) ?? []
-      const updated = [...prior, e.position]
-      if (updated.length > 120) updated.shift()
-      next.set(e.id, updated)
-    })
-    trailsRef.current = next
-  }, [state.excitations, showTraces])
-
-  // Keyboard shortcuts.
-  useEffect(() => {
-    const onKey = (ev: globalThis.KeyboardEvent) => {
-      if (settingsOpen && ev.key === 'Escape') {
-        ev.preventDefault()
-        setSettingsOpen(false)
-        return
-      }
-      if (!coachDismissed && ev.key === 'Escape') {
-        ev.preventDefault()
-        dismissCoach()
-        return
-      }
-      if (view !== 'lab' || settingsOpen || !coachDismissed) return
-      if (isInteractiveTarget(ev.target)) return
-      if (ev.code === 'Space') {
-        ev.preventDefault()
-        setRunning((r) => !r)
-      } else if (ev.key === '1') setTool('select')
-      else if (ev.key === '2') setTool('electron')
-      else if (ev.key === '3') setTool('positron')
-      else if (ev.key === '4') setTool('photon')
-      else if (ev.key === 'r' || ev.key === 'R') handleReset()
-      else if (ev.key === '.') handleStep()
-      else if (ev.key === 'Escape') setSettingsOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coachDismissed, presetId, settingsOpen, simulationOptions, view])
+  }, [])
 
-  // ---------------------------------------------------------------------
-  // Actions
-  // ---------------------------------------------------------------------
+  // Sync settings into gameLoop when they change
+  useEffect(() => {
+    gameLoop.setTimeScale(timeScale)
+  }, [timeScale])
 
-  const commit = (next: SimulationState) => {
-    stateRef.current = next
-    setState(next)
+  useEffect(() => {
+    gameLoop.setShowTraces(showTraces)
+  }, [showTraces])
+
+  useEffect(() => {
+    gameLoop.setTool(tool)
+  }, [tool])
+
+  useEffect(() => {
+    gameLoop.setAnnihilationMode(annihilationMode)
+  }, [annihilationMode])
+
+  useEffect(() => {
+    gameLoop.setAnnihilationAngleDegrees(annihilationAngleDegrees)
+  }, [annihilationAngleDegrees])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (isInteractiveTarget(e.target)) return
+      if (e.key === ' ') {
+        e.preventDefault()
+        gameLoop.togglePlay()
+      }
+      if (e.key === 's' || e.key === 'S') {
+        if (!running) gameLoop.step()
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        gameLoop.reset()
+      }
+      if (e.key === 'Escape') {
+        gameLoop.deselectAll()
+      }
+      if (e.key === '1') setTool('select')
+      if (e.key === '2') setTool('electron')
+      if (e.key === '3') setTool('positron')
+      if (e.key === '4') setTool('photon')
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [running])
+
+  const handleOpenLab = () => setView('lab')
+  const handleOpenAbout = () => setView('about')
+
+  const handleLoadPreset = (id: PresetId) => {
+    setPresetId(id)
+    gameLoop.loadPreset(id)
   }
 
   const handleReset = () => {
-    const s = getPreset(presetId).state
-    commit(s)
-    setRunning(false)
-    setPreview(null)
-    previewRef.current = null
-    dragPacketRef.current = null
-  }
-
-  const handleLoadPreset = (id: PresetId) => {
-    const s = getPreset(id).state
-    setView('lab')
-    setPresetId(id)
-    commit(s)
-    setRunning(false)
-    setPreview(null)
-    previewRef.current = null
-    dragPacketRef.current = null
+    gameLoop.reset()
   }
 
   const handleStep = () => {
-    const next = stepSimulation(stateRef.current, DEFAULT_SIMULATION_STEP, simulationOptions)
-    commit(next)
+    if (!running) gameLoop.step()
   }
 
   const handleClear = () => {
-    commit(clearAll(stateRef.current))
-    setRunning(false)
-    setPreview(null)
-    previewRef.current = null
-    dragPacketRef.current = null
+    gameLoop.clearAll()
   }
 
   const handleMomentumChange = (id: string, momentum: Vec2) => {
-    commit(updateExcitationMomentum(stateRef.current, id, momentum))
+    gameLoop.updateSelectedMomentum(id, momentum)
   }
 
-  const handleOpenAbout = () => {
-    setView('about')
-    setRunning(false)
-    setSettingsOpen(false)
-    setPreview(null)
-    previewRef.current = null
-    dragPacketRef.current = null
-  }
-
-  const handleOpenLab = () => {
-    setView('lab')
-  }
-
-  // ---------------------------------------------------------------------
-  // Pointer handling
-  // ---------------------------------------------------------------------
-
-  const onStagePointerDown = (ev: StagePointerEvent) => {
-    // Clicking on an existing packet always selects it and starts direct
-    // repositioning. Momentum is edited through spawn drags and the inspector.
-    if (ev.hitId) {
-      commit(selectExcitation(stateRef.current, ev.hitId))
-      dragPacketRef.current = { id: ev.hitId, panel: ev.panel }
-      previewRef.current = null
-      setPreview(null)
-      return
-    }
-    if (tool === 'select') {
-      commit(selectExcitation(stateRef.current, null))
-      return
-    }
-    if (!canSpawnInPanel(tool, ev.panel)) {
-      commit(selectExcitation(stateRef.current, null))
-      return
-    }
-    const p: DragPreview = { panel: ev.panel, start: ev.world, end: ev.world }
-    previewRef.current = p
-    setPreview(p)
-  }
-
-  const onStagePointerMove = (ev: StagePointerEvent) => {
-    const dragged = dragPacketRef.current
-    if (dragged && dragged.panel === ev.panel) {
-      commit(moveExcitation(stateRef.current, dragged.id, ev.world))
-      return
-    }
-    const active = previewRef.current
-    if (!active) return
-    if (active.panel !== ev.panel) return
-    const next = { ...active, end: ev.world }
-    previewRef.current = next
-    setPreview(next)
-  }
-
-  const onStagePointerUp = (ev: StagePointerEvent | null) => {
-    if (dragPacketRef.current) {
-      const dragged = dragPacketRef.current
-      if (ev && dragged.panel === ev.panel) {
-        commit(moveExcitation(stateRef.current, dragged.id, ev.world))
-      }
-      dragPacketRef.current = null
-      previewRef.current = null
-      setPreview(null)
-      return
-    }
-    const active = previewRef.current
-    previewRef.current = null
-    setPreview(null)
-    if (!active) return
-    const spawnKind = toolToSpawn(tool)
-    if (!spawnKind) return
-    if (!canSpawnInPanel(tool, active.panel)) return
-    const endWorld = ev && ev.panel === active.panel ? ev.world : active.end
-    const p: DragPreview = { ...active, end: endWorld }
-    const m = momentumFromPreview(p)
-    const tiny = magnitude(m) < DRAG_ZERO_MAG
-    const next = spawnExcitation(
-      stateRef.current,
-      spawnKind,
-      active.panel,
-      {
-        x: clamp01(active.start.x),
-        y: clamp01(active.start.y)
-      },
-      tiny ? { x: 0, y: 0 } : m
-    )
-    commit(next)
-  }
-
-  // ---------------------------------------------------------------------
-  // Derived data for overlays
-  // ---------------------------------------------------------------------
-
-  const selected = state.excitations.find((e) => e.selected && e.alive) ?? null
-  const aliveElectrons = state.excitations.filter((e) => e.alive && e.field === 'electron')
-  const alivePhotons = state.excitations.filter((e) => e.alive && e.field === 'photon')
-  const lastAnnihilation = state.lastAnnihilation
-
-  const shockwave = lastAnnihilation
-    ? {
-        eventId: lastAnnihilation.eventId,
-        position: lastAnnihilation.spawnPosition,
-        panel: 'photon' as SlabKey
-      }
-    : null
+  // Derived UI data
+  const selected = uiState?.selected ?? null
+  const aliveElectronCount = uiState?.aliveElectronCount ?? 0
+  const alivePhotonCount = uiState?.alivePhotonCount ?? 0
+  const simTime = uiState?.time ?? 0
+  const lastAnnihilation = uiState?.lastAnnihilation ?? null
 
   const selectionCard = selected ? (
-    <SelectionCard excitation={selected} onMomentumChange={(momentum) => handleMomentumChange(selected.id, momentum)} />
+    <SelectionCard
+      excitation={selected}
+      onMomentumChange={(momentum) => handleMomentumChange(selected.id, momentum)}
+    />
   ) : null
 
   const helpLine = useMemo(() => {
@@ -495,12 +295,9 @@ export default function App() {
     return match?.hint ?? ''
   }, [tool])
 
-  const activeTargetSlab: SlabKey | null =
-    tool === 'photon' ? 'photon' : tool === 'select' ? null : 'electron'
+  const activeTargetSlab = tool === 'photon' ? 'photon' : tool === 'select' ? null : 'electron'
   const activeTargetLabel = activeTargetSlab
-    ? preview
-      ? 'Release to fire'
-      : `Drag on the ${activeTargetSlab} field`
+    ? 'Drag on the field'
     : null
 
   return (
@@ -566,44 +363,30 @@ export default function App() {
         <>
           {/* The stage */}
           <main className="main" id="main-content" tabIndex={-1}>
-            <FieldStage
-              excitations={state.excitations}
-              time={state.time}
-              running={running}
-              selectedId={selected?.id ?? null}
-              preview={preview}
-              traceMap={trailsRef.current}
-              showTraces={showTraces}
-              shockwave={shockwave}
-              hoverPanel={hoverPanel}
-              onHoverPanel={setHoverPanel}
-              onPointerDown={onStagePointerDown}
-              onPointerMove={onStagePointerMove}
-              onPointerUp={onStagePointerUp}
-            />
+            <FieldStage />
 
             {/* Overlays: counts + help */}
             <div className="overlay overlay--tl" aria-hidden="true">
               <div className="counter">
                 <span className="counter-dot counter-dot--electron" />
                 <span className="counter-label">e⁻ / e⁺</span>
-                <span className="counter-value">{aliveElectrons.length}</span>
+                <span className="counter-value">{aliveElectronCount}</span>
               </div>
               <div className="counter">
                 <span className="counter-dot counter-dot--photon" />
                 <span className="counter-label">photons</span>
-                <span className="counter-value">{alivePhotons.length}</span>
+                <span className="counter-value">{alivePhotonCount}</span>
               </div>
               <div className="counter counter--faint">
                 <span className="counter-label">time</span>
-                <span className="counter-value mono">{formatNumber(state.time, 3)}</span>
+                <span className="counter-value mono">{formatNumber(simTime, 3)}</span>
               </div>
             </div>
 
             {selectionCard}
             {lastAnnihilation ? <EventCard summary={lastAnnihilation} /> : null}
 
-            {activeTargetSlab && !preview ? (
+            {activeTargetSlab && (
               <div
                 className={`target-banner target-banner--${activeTargetSlab}`}
                 aria-hidden="true"
@@ -611,7 +394,7 @@ export default function App() {
                 <span className="target-banner-pulse" />
                 <span className="target-banner-text">{activeTargetLabel}</span>
               </div>
-            ) : null}
+            )}
 
             <div className="help-line">{helpLine}</div>
           </main>
@@ -636,7 +419,7 @@ export default function App() {
               <button
                 type="button"
                 className={`transport transport--primary ${running ? 'is-running' : ''}`}
-                onClick={() => setRunning((r) => !r)}
+                onClick={() => gameLoop.togglePlay()}
                 aria-label={running ? 'Pause' : 'Play'}
               >
                 {running ? Icon.pause : Icon.play}
@@ -731,7 +514,7 @@ const SelectionCard = ({
   const kinetic = computeKineticEnergy(excitation)
   const gamma = computeLorentzGamma(excitation)
   const p = excitation.momentum
-  const pMag = magnitude(p)
+  const pMag = Math.hypot(p.x, p.y)
   const angle = normalizedDegrees(degreesFromMomentum(p))
 
   const setSpeed = (next: number) => {
