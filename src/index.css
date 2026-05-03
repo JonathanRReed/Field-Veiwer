@@ -129,9 +129,8 @@ input[type='range']:disabled::-webkit-slider-thumb {
   inset: 0;
   pointer-events: none;
   z-index: 4;
-  opacity: 0.08;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ==========================================================================
@@ -201,8 +200,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(10, 16, 28, 0.55);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 16, 28, 0.72);
 }
 
 .preset {
@@ -242,8 +240,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(10, 16, 28, 0.5);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 16, 28, 0.72);
 }
 
 .view-tab {
@@ -593,6 +590,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   width: 100%;
   height: 100%;
   display: block;
+  will-change: transform;
 }
 
 .stage-labels {
@@ -633,6 +631,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   position: absolute;
   z-index: 5;
   pointer-events: auto;
+  contain: layout style paint;
 }
 
 .overlay--tl {
@@ -727,8 +726,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 18px 20px 16px;
-  background: linear-gradient(180deg, rgba(13, 19, 28, 0.9), rgba(6, 11, 20, 0.85));
-  backdrop-filter: blur(16px) saturate(120%);
+  background: linear-gradient(180deg, rgba(13, 19, 28, 0.95), rgba(6, 11, 20, 0.92));
   box-shadow:
     0 40px 80px -40px rgba(0, 0, 0, 0.7),
     0 0 1px rgba(255, 255, 255, 0.05) inset;
@@ -939,8 +937,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   padding: 4px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(10, 16, 28, 0.55);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 16, 28, 0.72);
 }
 
 .tool {
@@ -1006,8 +1003,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   padding: 6px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(10, 16, 28, 0.55);
-  backdrop-filter: blur(12px);
+  background: rgba(10, 16, 28, 0.72);
 }
 
 .transport {
@@ -1147,8 +1143,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(6, 11, 20, 0.72);
-  backdrop-filter: blur(12px);
+  background: rgba(6, 11, 20, 0.82);
   z-index: 4;
   pointer-events: none;
   box-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.7);
@@ -1331,8 +1326,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
 .settings-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(2, 4, 9, 0.55);
-  backdrop-filter: blur(6px);
+  background: rgba(2, 4, 9, 0.72);
   display: grid;
   place-items: center;
   z-index: 30;

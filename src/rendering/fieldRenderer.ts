@@ -69,12 +69,12 @@ export interface ProjectedParticle {
 }
 
 // Grid sample resolution, higher = smoother and heavier.
-const MAX_COLS = 72
-const MAX_ROWS = 34
-const MID_COLS = 56
-const MID_ROWS = 28
-const MIN_COLS = 44
-const MIN_ROWS = 24
+const MAX_COLS = 56
+const MAX_ROWS = 28
+const MID_COLS = 48
+const MID_ROWS = 24
+const MIN_COLS = 40
+const MIN_ROWS = 20
 // Beyond this many sigma the Gaussian contribution is negligible; skip it.
 const GAUSS_CUTOFF_SIGMAS = 3.2
 // Cap devicePixelRatio to keep the stage light on retina displays.
@@ -100,6 +100,30 @@ const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.m
 const meshBuffers = new Map<string, { x: Float32Array; y: Float32Array }>()
 const alphaStyleCache = new Map<string, string>()
 const contextCache = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>()
+
+// Offscreen glow sprite cache: one 64×64 radial-gradient texture per color.
+// Drawn with globalAlpha to vary intensity.
+const glowSpriteCache = new Map<string, HTMLCanvasElement>()
+const GLOW_SPRITE_SIZE = 64
+
+const getGlowSprite = (color: string): HTMLCanvasElement => {
+  const cached = glowSpriteCache.get(color)
+  if (cached) return cached
+  const canvas = document.createElement('canvas')
+  canvas.width = GLOW_SPRITE_SIZE
+  canvas.height = GLOW_SPRITE_SIZE
+  const ctx = canvas.getContext('2d')!
+  const cx = GLOW_SPRITE_SIZE / 2
+  const r = GLOW_SPRITE_SIZE / 2
+  const g = ctx.createRadialGradient(cx, cx, 0, cx, cx, r)
+  g.addColorStop(0, color)
+  g.addColorStop(0.4, color)
+  g.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, GLOW_SPRITE_SIZE, GLOW_SPRITE_SIZE)
+  glowSpriteCache.set(color, canvas)
+  return canvas
+}
 
 export const getMeshResolution = (width: number): { cols: number; rows: number } => {
   if (width <= 520) return { cols: MIN_COLS, rows: MIN_ROWS }
@@ -418,19 +442,25 @@ const drawSlab = (
   }
 
   // Horizontal constant sy lines, back-to-front with depth alpha.
+  // Group into 4 depth buckets to batch beginPath/stroke calls.
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  for (let r = 0; r <= rows; r += 1) {
-    const depth = r / rows
+  const BUCKETS = 4
+  for (let b = 0; b < BUCKETS; b += 1) {
+    const rStart = Math.floor((b / BUCKETS) * (rows + 1))
+    const rEnd = Math.floor(((b + 1) / BUCKETS) * (rows + 1))
+    if (rStart >= rEnd) continue
+    const depth = (rEnd - 1) / rows
     const alpha = 0.14 + 0.58 * depth
     ctx.strokeStyle = withAlpha(slab.accent, alpha)
     ctx.lineWidth = 0.55 + 0.55 * depth
     ctx.beginPath()
-    const base = r * stride
-    ctx.moveTo(gridX[base], gridY[base])
-    for (let c = 1; c <= cols; c += 1) {
-      const i = base + c
-      ctx.lineTo(gridX[i], gridY[i])
+    for (let r = rStart; r < rEnd; r += 1) {
+      const base = r * stride
+      ctx.moveTo(gridX[base], gridY[base])
+      for (let c = 1; c <= cols; c += 1) {
+        ctx.lineTo(gridX[base + c], gridY[base + c])
+      }
     }
     ctx.stroke()
   }
@@ -470,15 +500,12 @@ const drawSlab = (
     const mag = magnitude(e.momentum)
     const radius = 4.5 + 2.6 * Math.min(2.2, mag) + 2.5 * Math.min(1.2, Math.abs(z))
 
-    // Soft probability cloud
-    const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 3.4)
-    glow.addColorStop(0, withAlpha(color, 0.55))
-    glow.addColorStop(0.4, withAlpha(color, 0.18))
-    glow.addColorStop(1, withAlpha(color, 0))
-    ctx.fillStyle = glow
-    ctx.beginPath()
-    ctx.arc(p.x, p.y, radius * 3.4, 0, Math.PI * 2)
-    ctx.fill()
+    // Soft probability cloud via cached sprite.
+    const sprite = getGlowSprite(color)
+    const s = radius * 3.4 / (GLOW_SPRITE_SIZE / 2)
+    ctx.globalAlpha = 0.55
+    ctx.drawImage(sprite, p.x - sprite.width * s * 0.5, p.y - sprite.height * s * 0.5, sprite.width * s, sprite.height * s)
+    ctx.globalAlpha = 1
 
     // Crisp core
     ctx.fillStyle = '#ffffff'

@@ -6,7 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
   {
-    ignores: ['dist', 'node_modules', 'coverage', 'eslint.config.js']
+    ignores: ['dist', 'node_modules', 'coverage', 'eslint.config.js', 'public']
   },
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
@@ -20,6 +20,7 @@ export default [
       globals: {
         window: 'readonly',
         document: 'readonly',
+        navigator: 'readonly',
         console: 'readonly',
         performance: 'readonly',
         requestAnimationFrame: 'readonly',
