@@ -240,6 +240,7 @@ export default function App() {
         gameLoop.reset()
       }
       if (e.key === 'Escape') {
+        setSettingsOpen(false)
         gameLoop.deselectAll()
       }
       if (e.key === '1') setTool('select')
@@ -750,7 +751,7 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
           Built this to see if a physics demo could be honest about what it omits.
           If you find a bug in the conservation math, it is a bug.
         </p>
-        <a href="https://jonathanrreed.com/" rel="author external noreferrer" target="_blank">
+        <a href="https://jonathanrreed.com/" rel="author external noopener noreferrer" target="_blank">
           jonathanrreed.com
         </a>
       </div>
@@ -769,15 +770,22 @@ const CoachOverlay = ({ onDismiss }: { onDismiss: () => void }) => {
   }, [])
 
   return (
-  <div
-    ref={dialogRef}
-    className="coach"
-    role="dialog"
-    aria-label="Getting started"
-    aria-modal="true"
-    tabIndex={-1}
-    onKeyDown={(event) => cycleDialogFocus(event, dialogRef.current)}
-  >
+    <div
+      ref={dialogRef}
+      className="coach"
+      role="dialog"
+      aria-label="Getting started"
+      aria-modal="true"
+      tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation()
+          onDismiss()
+          return
+        }
+        cycleDialogFocus(event, dialogRef.current)
+      }}
+    >
     <div className="coach-card">
       <p className="coach-eyebrow">Field Viewer</p>
       <p className="coach-lede">
@@ -808,7 +816,7 @@ const CoachOverlay = ({ onDismiss }: { onDismiss: () => void }) => {
         got it
       </button>
     </div>
-  </div>
+    </div>
   )
 }
 
@@ -844,7 +852,14 @@ const SettingsPanel = ({
         aria-modal="true"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(event) => cycleDialogFocus(event, dialogRef.current)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation()
+            onClose()
+            return
+          }
+          cycleDialogFocus(event, dialogRef.current)
+        }}
       >
         <h2 className="serif-italic">annihilation</h2>
         <p className="micro">

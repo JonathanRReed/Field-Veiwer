@@ -581,6 +581,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
 .stage {
   position: absolute;
   inset: 0;
+  cursor: crosshair;
   touch-action: none;
 }
 
