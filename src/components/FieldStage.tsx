@@ -50,7 +50,6 @@ export const FieldStage = () => {
       onPointerCancel={() => {
         gameLoop.onPointerLeave()
       }}
-      style={{ cursor: 'crosshair' }}
     >
       <canvas ref={canvasRef} className="stage-canvas" aria-label="Field stage" />
       <div className="stage-labels" aria-hidden="true">

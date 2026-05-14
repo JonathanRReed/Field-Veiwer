@@ -94,6 +94,7 @@ export class GameLoop {
 
   private state: SimulationState
   private running = false
+  private currentPresetId: PresetId = defaultPresetId
   private timeScale = 1
   private showTraces = false
   private annihilationMode: AnnihilationMode = DEFAULT_ANNIHILATION_MODE
@@ -348,20 +349,27 @@ export class GameLoop {
   }
 
   reset() {
-    this.state = getPreset(defaultPresetId).state
+    this.state = getPreset(this.currentPresetId).state
     this.trails.clear()
     this.preview = null
     this.dragId = null
+    this.dragPanel = null
+    this.hoverPanel = null
+    this.selectedId = null
     this.shockwaveStartRef = null
     this.completedShockwaveIdRef = null
     this.emitState(true)
   }
 
   loadPreset(id: PresetId) {
+    this.currentPresetId = id
     this.state = getPreset(id).state
     this.trails.clear()
     this.preview = null
     this.dragId = null
+    this.dragPanel = null
+    this.hoverPanel = null
+    this.selectedId = null
     this.shockwaveStartRef = null
     this.completedShockwaveIdRef = null
     this.emitState(true)
@@ -372,6 +380,9 @@ export class GameLoop {
     this.trails.clear()
     this.preview = null
     this.dragId = null
+    this.dragPanel = null
+    this.hoverPanel = null
+    this.selectedId = null
     this.emitState(true)
   }
 
@@ -478,9 +489,12 @@ export class GameLoop {
     }
 
     const p: DragPreview = { panel: resolved.panel, start: resolved.world, end: resolved.world }
+    this.state = selectExcitation(this.state, null)
     this.preview = p
     this.dragId = null
+    this.dragPanel = null
     this.selectedId = null
+    this.emitState(true)
   }
 
   onPointerMove(clientX: number, clientY: number) {
