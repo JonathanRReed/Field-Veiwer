@@ -1,8 +1,16 @@
 # Field Viewer
 
-Field Viewer is a client-side field model for inspecting electron and photon packets, positrons as antiparticles, and conservation checks during electron-positron annihilation.
+Field Viewer is a client-side physics visualization for inspecting electron, positron, and photon packets and checking the conservation math behind annihilation events.
 
-The app is not a full quantum field theory solver. It is a compact visual model with explicit state, readable assumptions, and tests for the core math.
+It is intentionally not a full quantum field theory solver. The value proposition is clarity: explicit assumptions, visible state, and a compact interface that makes the model easy to explain in an interview.
+
+## Why this project reads well in a portfolio
+
+- Strong visual demo with a browser canvas and immediate feedback.
+- Honest scope: the README states what the model does and does not do.
+- Tests cover the core math and rendering helpers.
+- Static, deployable, client-only app with no accounts or backend dependencies.
+- Clear metadata and social preview assets for sharing.
 
 ## Features
 
@@ -16,7 +24,24 @@ The app is not a full quantum field theory solver. It is a compact visual model 
 - Client-side only runtime, no backend, accounts, database, analytics, or external runtime data.
 - Static deployment output for Cloudflare Pages or any static host.
 
-## Model Scope
+## Quick start
+
+```bash
+bun install
+bun run dev
+```
+
+## Controls
+
+- Select: inspect a packet and drag to move it.
+- Electron, positron, photon: drag on the matching field to create a packet.
+- Space: play or pause.
+- S: step one frame when paused.
+- R: reset.
+- 1, 2, 3, 4: switch tools.
+- Escape: close the settings panel or clear selection.
+
+## Model scope
 
 Field Viewer uses normalized simulation units:
 
@@ -37,7 +62,7 @@ The default annihilation path builds the photon pair in the center-of-momentum f
 
 See [docs/math-accuracy-audit-2026-04-15.md](docs/math-accuracy-audit-2026-04-15.md) for the math audit and upgrade notes.
 
-## Project Structure
+## Project structure
 
 ```text
 src/
@@ -58,27 +83,13 @@ docs/                        Model notes and accuracy audit
 - Bun `>= 1.3.0`
 - Node `>= 22.12.0`, used by Vite and TypeScript tooling
 
-## Setup
-
-```bash
-bun install
-```
-
-## Development
-
-```bash
-bun run dev
-```
-
-## Quality Checks
-
-Run the full local check before publishing changes:
+## Quality checks
 
 ```bash
 bun run check
 ```
 
-The check script runs:
+That script runs:
 
 ```bash
 bun run lint
@@ -87,14 +98,14 @@ bun run test
 bun run build
 ```
 
-## Preview Production Build
+## Preview production build
 
 ```bash
 bun run build
 bun run preview
 ```
 
-## Static Deployment
+## Static deployment
 
 For Cloudflare Pages or another static host:
 
