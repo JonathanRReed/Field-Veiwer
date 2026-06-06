@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://field-veiwer.pages.dev/sitemap.xml
+Sitemap: https://fieldviewer.jonathanrreed.com/sitemap.xml
