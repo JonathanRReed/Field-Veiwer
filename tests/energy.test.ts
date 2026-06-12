@@ -20,7 +20,8 @@ import {
   computeMandelstamU,
   computeMassShellError,
   computeLorentzGamma,
-  computeMomentumFromSpeed,
+  computeDisplacement,
+  computeKineticEnergy,
   computeProperTimeRate,
   computeRapidityFromBeta,
   computeTwoBodyMomentumMagnitude,
@@ -83,7 +84,7 @@ describe('energy calculations', () => {
     }
 
     const dt = 0.25
-    const speed = computeMomentumFromSpeed(electron, dt)
+    const speed = computeDisplacement(electron, dt)
     const speedMag = Math.hypot(speed.x, speed.y)
 
     expect(speedMag).toBeCloseTo((5 / Math.sqrt(26)) * dt)
@@ -106,7 +107,7 @@ describe('energy calculations', () => {
     }
 
     const dt = 0.25
-    const speed = computeMomentumFromSpeed(photon, dt)
+    const speed = computeDisplacement(photon, dt)
 
     expect(speed.x).toBeCloseTo(0)
     expect(speed.y).toBeCloseTo(dt)
@@ -346,6 +347,40 @@ describe('energy calculations', () => {
     expect(rest.gamma).toBe(1)
     expect(light.gamma).toBe(Number.POSITIVE_INFINITY)
     expect(light.rapidity).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  test('kinetic energy is E - m, so a photon carries K = E = |p|', () => {
+    const electron: Excitation = {
+      id: 'k-e',
+      field: 'electron',
+      kind: 'particle',
+      charge: -1,
+      spinLabel: 0.5,
+      mass: 1,
+      position: { x: 0, y: 0 },
+      momentum: { x: 3, y: 4 },
+      amplitude: 1,
+      phase: 0,
+      alive: true,
+      selected: false
+    }
+    const photon: Excitation = {
+      id: 'k-p',
+      field: 'photon',
+      kind: 'boson',
+      charge: 0,
+      spinLabel: 1,
+      mass: 0,
+      position: { x: 0, y: 0 },
+      momentum: { x: 3, y: 4 },
+      amplitude: 1,
+      phase: 0,
+      alive: true,
+      selected: false
+    }
+
+    expect(computeKineticEnergy(electron)).toBeCloseTo(Math.sqrt(26) - 1)
+    expect(computeKineticEnergy(photon)).toBeCloseTo(5)
   })
 
   test('proper-time rate matches 1/gamma for massive packets', () => {

@@ -17,7 +17,7 @@ export const DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE_DEGREES = 90
 export const UNIT_MAGNITUDE_REFERENCE = {
   electronMass: '9.109 × 10^-31 kg',
   electronCharge: '1.602 × 10^-19 C',
-  electronPositronSpin: 'ħ/2'
+  electronPositronSpin: 's = 1/2 (S_z = ±ħ/2)'
 }
 
 export const STABLE_AXIS: Vec2 = { x: 1, y: 0 }

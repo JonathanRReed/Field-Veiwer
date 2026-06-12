@@ -80,19 +80,24 @@ const GAUSS_CUTOFF_SIGMAS = 3.2
 // Cap devicePixelRatio to keep the stage light on retina displays.
 const MAX_DPR = 1.5
 
-// Stage projection tunables.
+// Stage projection tunables. SLAB_TOP_INSET must stay close to
+// HEIGHT_SCALE_FRAC so a full-amplitude bump on the back rows cannot project
+// past the top of the canvas and clip its packet marker.
 const BACK_SHRINK = 0.62 // back edge is this fraction of front edge width
-const SLAB_TOP_INSET = 0.14 // fraction of slab reserved above the back edge
+const SLAB_TOP_INSET = 0.16 // fraction of slab reserved above the back edge
 const SLAB_BOTTOM_INSET = 0.08
-const HEIGHT_SCALE_FRAC = 0.34 // fraction of slab height the max z bump covers
+const HEIGHT_SCALE_FRAC = 0.31 // fraction of slab height the max z bump covers
 
 // Gaussian widths and amplitudes of each field species in world (sx, sy) units.
 const ELECTRON_SIGMA = 0.062
 const ELECTRON_AMP = 0.9
 const PHOTON_SIGMA = 0.11
 const PHOTON_AMP = 0.55
-const PHOTON_OMEGA = 7.5
-const PHOTON_K = 34
+// Base carrier wavenumber for photon packets. The drawn wavelength shrinks
+// with |p| within clamped bounds (lambda = 2*pi/|p|), and the carrier phase
+// is fixed in the packet frame: for massless waves phase velocity equals
+// group velocity, so crests must not drift through the envelope.
+const PHOTON_K = 30
 
 /** Linear clamp helper */
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v))
@@ -171,7 +176,7 @@ type PrepedExcitation = {
   ux: number
   uy: number
   k: number
-  omegaPhase: number // baked: e.phase - time * omega
+  carrierPhase: number
   photonAmp: number
 }
 
@@ -182,7 +187,9 @@ const prepareExcitations = (excitations: Excitation[], time: number): PrepedExci
     if (!e.alive) continue
     if (e.field === 'electron') {
       const sigma = ELECTRON_SIGMA
-      const breath = 1 + 0.08 * Math.sin(e.phase + time * 1.2)
+      // The packet phase advances at omega = E (hbar = 1), so sin(phase)
+      // oscillates at the packet's own frequency and freezes when paused.
+      const breath = 1 + 0.06 * Math.sin(e.phase)
       const amp =
         ELECTRON_AMP *
         (0.78 + 0.22 * e.amplitude) *
@@ -200,7 +207,7 @@ const prepareExcitations = (excitations: Excitation[], time: number): PrepedExci
         ux: 0,
         uy: 0,
         k: 0,
-        omegaPhase: 0,
+        carrierPhase: 0,
         photonAmp: 0
       })
     } else {
@@ -212,8 +219,11 @@ const prepareExcitations = (excitations: Excitation[], time: number): PrepedExci
         uy = e.momentum.y / mag
       }
       const sigma = PHOTON_SIGMA
-      const k = PHOTON_K * (0.6 + 0.4 * Math.min(1, mag))
-      const omega = PHOTON_OMEGA * (0.7 + 0.3 * Math.min(1, mag))
+      const k = PHOTON_K * clamp(0.35 + 0.65 * mag, 0.35, 1.7)
+      // e.phase grows as E * t while the packet center advances at c = 1, so
+      // (e.phase - time * E) is constant and crests stay locked to the
+      // envelope, matching dispersion-free propagation.
+      const carrierPhase = e.phase - time * mag
       out.push({
         id: e.id,
         field: 'photon',
@@ -226,7 +236,7 @@ const prepareExcitations = (excitations: Excitation[], time: number): PrepedExci
         ux,
         uy,
         k,
-        omegaPhase: e.phase - time * omega,
+        carrierPhase,
         photonAmp: PHOTON_AMP * (0.7 + 0.3 * e.amplitude)
       })
     }
@@ -266,7 +276,7 @@ const evaluateFieldPrepped = (
       z += p.sign * p.electronAmp * envelope
     } else {
       const along = dx * p.ux + dy * p.uy
-      z += p.photonAmp * envelope * Math.cos(along * p.k + p.omegaPhase)
+      z += p.photonAmp * envelope * Math.cos(along * p.k + p.carrierPhase)
     }
   }
   return z
@@ -411,7 +421,39 @@ const drawVignette = (ctx: CanvasRenderingContext2D, w: number, h: number): void
   ctx.fillRect(0, 0, w, h)
 }
 
-/** Render a single slab's wireframe mesh + excitation overlays. */
+// Opaque band fills give the surface hidden-line occlusion: each strip
+// between two contour rows is painted back-to-front before its front contour
+// is stroked, so geometry behind a hill is covered.
+const bandFillCache = new Map<string, string[]>()
+
+const getBandFills = (slab: Slab, rows: number): string[] => {
+  const key = `${slab.key}:${rows}`
+  const cached = bandFillCache.get(key)
+  if (cached) return cached
+
+  let h = slab.accent.replace('#', '')
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+  const ar = parseInt(h.slice(0, 2), 16)
+  const ag = parseInt(h.slice(2, 4), 16)
+  const ab = parseInt(h.slice(4, 6), 16)
+
+  const fills: string[] = []
+  for (let r = 0; r < rows; r += 1) {
+    const depth = (r + 1) / rows
+    // Dark base lifted toward the front, with a small accent component so
+    // the fill is not pure black.
+    const lift = 1 + 0.5 * depth
+    const tint = 0.045 + 0.075 * depth
+    const cr = Math.round(4 * lift + ar * tint)
+    const cg = Math.round(8 * lift + ag * tint)
+    const cb = Math.round(15 * lift + ab * tint)
+    fills.push(`rgba(${cr}, ${cg}, ${cb}, 0.97)`)
+  }
+  bandFillCache.set(key, fills)
+  return fills
+}
+
+/** Render a single slab's occluded contour mesh + excitation overlays. */
 const drawSlab = (
   ctx: CanvasRenderingContext2D,
   slab: Slab,
@@ -441,54 +483,59 @@ const drawSlab = (
     }
   }
 
-  // Horizontal constant sy lines, back-to-front with depth alpha.
-  // Group into 4 depth buckets to batch beginPath/stroke calls.
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  const BUCKETS = 4
-  for (let b = 0; b < BUCKETS; b += 1) {
-    const rStart = Math.floor((b / BUCKETS) * (rows + 1))
-    const rEnd = Math.floor(((b + 1) / BUCKETS) * (rows + 1))
-    if (rStart >= rEnd) continue
-    const depth = (rEnd - 1) / rows
-    const alpha = 0.14 + 0.58 * depth
-    ctx.strokeStyle = withAlpha(slab.accent, alpha)
-    ctx.lineWidth = 0.55 + 0.55 * depth
-    ctx.beginPath()
-    for (let r = rStart; r < rEnd; r += 1) {
-      const base = r * stride
-      ctx.moveTo(gridX[base], gridY[base])
-      for (let c = 1; c <= cols; c += 1) {
-        ctx.lineTo(gridX[base + c], gridY[base + c])
-      }
-    }
-    ctx.stroke()
-  }
+  const fills = getBandFills(slab, rows)
 
-  // Vertical constant sx lines, one path each.
-  ctx.strokeStyle = withAlpha(slab.accent, 0.18)
-  ctx.lineWidth = 0.5
-  for (let c = 0; c <= cols; c += 1) {
-    ctx.beginPath()
-    ctx.moveTo(gridX[c], gridY[c])
-    for (let r = 1; r <= rows; r += 1) {
-      const i = r * stride + c
-      ctx.lineTo(gridX[i], gridY[i])
-    }
-    ctx.stroke()
-  }
-
-  // Bright front-edge accent line.
-  ctx.strokeStyle = withAlpha(slab.accent, 0.9)
-  ctx.lineWidth = 1.2
+  // Back edge first, then paint each band over what lies behind it.
+  ctx.strokeStyle = withAlpha(slab.accent, 0.16)
+  ctx.lineWidth = 0.55
   ctx.beginPath()
-  const frontBase = rows * stride
-  ctx.moveTo(gridX[frontBase], gridY[frontBase])
+  ctx.moveTo(gridX[0], gridY[0])
   for (let c = 1; c <= cols; c += 1) {
-    const i = frontBase + c
-    ctx.lineTo(gridX[i], gridY[i])
+    ctx.lineTo(gridX[c], gridY[c])
   }
   ctx.stroke()
+
+  for (let r = 1; r <= rows; r += 1) {
+    const depth = r / rows
+    const prev = (r - 1) * stride
+    const cur = r * stride
+
+    // Opaque strip between row r-1 and row r (the occluder).
+    ctx.fillStyle = fills[r - 1]
+    ctx.beginPath()
+    ctx.moveTo(gridX[prev], gridY[prev])
+    for (let c = 1; c <= cols; c += 1) {
+      ctx.lineTo(gridX[prev + c], gridY[prev + c])
+    }
+    for (let c = cols; c >= 0; c -= 1) {
+      ctx.lineTo(gridX[cur + c], gridY[cur + c])
+    }
+    ctx.closePath()
+    ctx.fill()
+
+    // Vertical stitches inside this band only, so hills occlude them too.
+    ctx.strokeStyle = withAlpha(slab.accent, 0.05 + 0.11 * depth)
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    for (let c = 0; c <= cols; c += 1) {
+      ctx.moveTo(gridX[prev + c], gridY[prev + c])
+      ctx.lineTo(gridX[cur + c], gridY[cur + c])
+    }
+    ctx.stroke()
+
+    // Contour line at row r, brighter and heavier toward the viewer.
+    const isFront = r === rows
+    ctx.strokeStyle = withAlpha(slab.accent, isFront ? 0.92 : 0.15 + 0.55 * depth)
+    ctx.lineWidth = isFront ? 1.25 : 0.55 + 0.6 * depth
+    ctx.beginPath()
+    ctx.moveTo(gridX[cur], gridY[cur])
+    for (let c = 1; c <= cols; c += 1) {
+      ctx.lineTo(gridX[cur + c], gridY[cur + c])
+    }
+    ctx.stroke()
+  }
 
   // Excitation crowns: soft glow + bright core projected at their field position.
   for (const e of excitations) {
@@ -522,11 +569,9 @@ const drawSlab = (
     // Momentum tick
     if (mag > 0.05) {
       const ang = Math.atan2(e.momentum.y, e.momentum.x)
-      const len = Math.min(48, 14 + mag * 16)
-      const dirX = Math.cos(ang)
       // Momentum is defined on the flat (sx, sy) plane. Project both endpoints.
       const tip = project(
-        clamp(e.position.x + dirX * 0.08 * Math.min(3, mag), 0, 1),
+        clamp(e.position.x + Math.cos(ang) * 0.08 * Math.min(3, mag), 0, 1),
         clamp(e.position.y + Math.sin(ang) * 0.08 * Math.min(3, mag), 0, 1),
         z,
         slab,
@@ -547,8 +592,6 @@ const drawSlab = (
       ctx.lineTo(tip.x - 7 * Math.cos(theta + 0.4), tip.y - 7 * Math.sin(theta + 0.4))
       ctx.closePath()
       ctx.fill()
-      // keep len referenced to avoid unused warnings
-      void len
     }
 
     if (selected) {
@@ -563,9 +606,6 @@ const drawSlab = (
 
     projected.push({ id: e.id, panel: slab.key, x: p.x, y: p.y, radius: radius + 10 })
   }
-
-  // Slab label, decorative and drawn as part of render.
-  void slab.label
 }
 
 const drawDragPreview = (
@@ -599,19 +639,21 @@ const drawDragPreview = (
 const drawShockwave = (
   ctx: CanvasRenderingContext2D,
   sw: ShockwaveEffect,
-  layout: StageLayout
+  layout: StageLayout,
+  panel: SlabKey = sw.panel,
+  intensity = 1
 ): void => {
-  const slab = layout.slabs[sw.panel]
+  const slab = layout.slabs[panel]
   if (!slab) return
   const c = project(sw.position.x, sw.position.y, 0, slab, layout.width)
   const t = clamp(sw.age / sw.duration, 0, 1)
   ctx.save()
   ctx.globalCompositeOperation = 'lighter'
-  const flash = (1 - t) * 0.8
+  const flash = (1 - t) * 0.8 * intensity
   if (flash > 0) {
     const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 90)
     g.addColorStop(0, `rgba(255,255,255,${flash.toFixed(3)})`)
-    g.addColorStop(0.4, withAlpha('#f5c77a', flash * 0.6))
+    g.addColorStop(0.4, withAlpha(slab.accent, flash * 0.6))
     g.addColorStop(1, 'rgba(0,0,0,0)')
     ctx.fillStyle = g
     ctx.beginPath()
@@ -621,8 +663,8 @@ const drawShockwave = (
   for (let i = 0; i < 3; i += 1) {
     const phase = clamp(t - i * 0.08, 0, 1)
     if (phase <= 0 || phase >= 1) continue
-    const r = phase * 220
-    const a = (1 - phase) * 0.5
+    const r = phase * 220 * (0.6 + 0.4 * intensity)
+    const a = (1 - phase) * 0.5 * intensity
     ctx.strokeStyle = withAlpha(slab.accent, a)
     ctx.lineWidth = 2.4 - i * 0.6
     ctx.beginPath()
@@ -814,7 +856,10 @@ export const renderStage = (input: RenderStageInput): void => {
   }
 
   if (shockwave) {
+    // Main burst on the photon slab where the photons appear, plus a fainter
+    // echo on the electron slab where the pair vanished.
     drawShockwave(ctx, shockwave, layout)
+    drawShockwave(ctx, shockwave, layout, 'electron', 0.4)
   }
 
   drawVignette(ctx, layout.width, layout.height)

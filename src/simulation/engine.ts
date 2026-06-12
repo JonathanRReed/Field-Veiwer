@@ -20,7 +20,7 @@ import {
   computeInvariantMassFromEnergyMomentum,
   computeEnergy,
   computeKinematicsFromEnergyMomentum,
-  computeMomentumFromSpeed,
+  computeDisplacement,
   computeFourVectorResidual,
   computeFourVectorCollinearity,
   computeAnnihilationScattering,
@@ -40,12 +40,8 @@ type SpawnedPair = {
 const WRAP_SHIFTS = [-1, 0, 1] as const
 const EPSILON = 1e-10
 
-const normalizeWrapped = (value: number): number => {
-  const wrapped = value % 1
-  return wrapped < 0 ? wrapped + 1 : wrapped
-}
-
-const clamp01 = (value: number): number => {
+// Positions live on the unit torus; every write goes through this wrap.
+const wrap01 = (value: number): number => {
   const wrapped = value % 1
   return wrapped < 0 ? wrapped + 1 : wrapped
 }
@@ -95,10 +91,10 @@ export const stepExcitation = (excitation: Excitation, dt: number): Excitation =
     return excitation
   }
 
-  const displacement = computeMomentumFromSpeed(excitation, dt)
+  const displacement = computeDisplacement(excitation, dt)
   const nextPosition = {
-    x: clamp01(excitation.position.x + displacement.x),
-    y: clamp01(excitation.position.y + displacement.y)
+    x: wrap01(excitation.position.x + displacement.x),
+    y: wrap01(excitation.position.y + displacement.y)
   }
 
   const nextPhase = excitation.phase + computeEnergy(excitation) * dt
@@ -137,8 +133,8 @@ const createPhotonFromPair = (
   const photonHelicities = [1, -1] as const
 
   const finalSpawn = {
-    x: normalizeWrapped(spawnPosition.x),
-    y: normalizeWrapped(spawnPosition.y)
+    x: wrap01(spawnPosition.x),
+    y: wrap01(spawnPosition.y)
   }
 
   const photonA = makeExcitation({
@@ -314,8 +310,8 @@ const detectCrossing = (
     return {
       time: best.time,
       spawnPosition: {
-        x: normalizeWrapped(best.spawnPosition.x),
-        y: normalizeWrapped(best.spawnPosition.y)
+        x: wrap01(best.spawnPosition.x),
+        y: wrap01(best.spawnPosition.y)
       }
     }
   }
@@ -423,9 +419,7 @@ export const stepSimulation = (
     }
   }
 
-  const survivors = moved
-    .filter((excitation) => !idsToRemove.has(excitation.id))
-    .map((excitation) => (idsToRemove.has(excitation.id) ? { ...excitation, alive: false } : excitation))
+  const survivors = moved.filter((excitation) => !idsToRemove.has(excitation.id))
 
   return {
     time: state.time + safeDt,
@@ -562,8 +556,8 @@ export const moveExcitation = (
       ? {
           ...e,
           position: {
-            x: clamp01(position.x),
-            y: clamp01(position.y)
+            x: wrap01(position.x),
+            y: wrap01(position.y)
           }
         }
       : e

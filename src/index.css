@@ -1,5 +1,5 @@
 /* ==========================================================================
- * Field Viewer, cinematic quantum-field visualizer
+ * Field Viewer
  * ========================================================================== */
 
 :root {
@@ -200,7 +200,9 @@ input[type='range']:disabled::-webkit-slider-thumb {
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(10, 16, 28, 0.72);
+  background: rgba(10, 16, 28, 0.6);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .preset {
@@ -240,7 +242,9 @@ input[type='range']:disabled::-webkit-slider-thumb {
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(10, 16, 28, 0.72);
+  background: rgba(10, 16, 28, 0.6);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .view-tab {
@@ -606,22 +610,22 @@ input[type='range']:disabled::-webkit-slider-thumb {
   transform: translateX(-50%);
   font-family: var(--font-display);
   font-style: italic;
-  font-size: clamp(30px, 4.6vw, 62px);
-  letter-spacing: 0.005em;
+  font-size: clamp(24px, 3.4vw, 46px);
+  letter-spacing: 0.01em;
   color: rgba(255, 255, 255, 0.72);
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.6);
   mix-blend-mode: screen;
-  opacity: 0.85;
+  opacity: 0.6;
 }
 
 .stage-label--electron {
-  top: 8%;
-  color: rgba(180, 250, 225, 0.78);
+  top: 6.5%;
+  color: rgba(180, 250, 225, 0.75);
 }
 
 .stage-label--photon {
-  top: 54%;
-  color: rgba(250, 220, 160, 0.78);
+  top: 53%;
+  color: rgba(250, 220, 160, 0.75);
 }
 
 /* ==========================================================================
@@ -727,7 +731,9 @@ input[type='range']:disabled::-webkit-slider-thumb {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: 18px 20px 16px;
-  background: linear-gradient(180deg, rgba(13, 19, 28, 0.95), rgba(6, 11, 20, 0.92));
+  background: linear-gradient(180deg, rgba(13, 19, 28, 0.88), rgba(6, 11, 20, 0.84));
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  backdrop-filter: blur(14px) saturate(1.15);
   box-shadow:
     0 40px 80px -40px rgba(0, 0, 0, 0.7),
     0 0 1px rgba(255, 255, 255, 0.05) inset;
@@ -788,7 +794,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
 
 .selection-card-live {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px 12px;
   padding-top: 10px;
   border-top: 1px solid var(--line);
@@ -846,6 +852,14 @@ input[type='range']:disabled::-webkit-slider-thumb {
   color: var(--text-muted);
 }
 
+/* Quantity labels keep their authored case: uppercasing turns γ, β, λ into
+ * Γ, Β, Λ. */
+.selection-card-live .micro,
+.selection-card-foot .micro,
+.event-card-grid .micro {
+  text-transform: none;
+}
+
 .mono {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -889,7 +903,16 @@ input[type='range']:disabled::-webkit-slider-thumb {
 .event-card-checks {
   margin-top: 12px;
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.event-card-residual {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0.04em;
 }
 
 .pill {
@@ -900,7 +923,6 @@ input[type='range']:disabled::-webkit-slider-thumb {
   border-radius: 999px;
   font-size: 10px;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
   font-family: var(--font-mono);
 }
 
@@ -938,7 +960,9 @@ input[type='range']:disabled::-webkit-slider-thumb {
   padding: 4px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(10, 16, 28, 0.72);
+  background: rgba(10, 16, 28, 0.6);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .tool {
@@ -1004,7 +1028,9 @@ input[type='range']:disabled::-webkit-slider-thumb {
   padding: 6px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(10, 16, 28, 0.72);
+  background: rgba(10, 16, 28, 0.6);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .transport {
@@ -1139,8 +1165,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
   gap: 10px;
   padding: 8px 16px 8px 12px;
   font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -1150,16 +1175,29 @@ input[type='range']:disabled::-webkit-slider-thumb {
   box-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.7);
 }
 
+/* Tint follows the tool; vertical position follows the target slab. No
+ * text-transform here: particle symbols like e⁺ are case-sensitive. */
 .target-banner--electron {
-  top: 24px;
   color: var(--electron);
   border-color: rgba(140, 240, 212, 0.35);
 }
 
+.target-banner--positron {
+  color: var(--positron);
+  border-color: rgba(255, 122, 168, 0.35);
+}
+
 .target-banner--photon {
-  top: 52%;
   color: var(--photon);
   border-color: rgba(245, 199, 122, 0.35);
+}
+
+.target-banner--on-electron {
+  top: 24px;
+}
+
+.target-banner--on-photon {
+  top: 52%;
 }
 
 .target-banner-pulse {
@@ -1553,7 +1591,7 @@ input[type='range']:disabled::-webkit-slider-thumb {
     gap: 8px;
   }
   .selection-card-live {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .selection-controls {
     gap: 10px;
@@ -1706,6 +1744,13 @@ input[type='range']:disabled::-webkit-slider-thumb {
   .selection-card-live,
   .event-card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .event-card-residual {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+  .event-card-checks {
+    flex-wrap: wrap;
   }
   .math-list {
     grid-template-columns: 1fr;

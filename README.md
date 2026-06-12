@@ -2,25 +2,17 @@
 
 Field Viewer is a client-side physics visualization for inspecting electron, positron, and photon packets and checking the conservation math behind annihilation events.
 
-It is intentionally not a full quantum field theory solver. The value proposition is clarity: explicit assumptions, visible state, and a compact interface that makes the model easy to explain in an interview.
-
-## Why this project reads well in a portfolio
-
-- Strong visual demo with a browser canvas and immediate feedback.
-- Honest scope: the README states what the model does and does not do.
-- Tests cover the core math and rendering helpers.
-- Static, deployable, client-only app with no accounts or backend dependencies.
-- Clear metadata and social preview assets for sharing.
+It is not a quantum field theory solver. The kinematics it does implement (relativistic energy-momentum, Lorentz boosts, two-body annihilation) are implemented exactly, the simplifications are stated in the interface, and the event panel prints the conservation residuals so the bookkeeping can be checked by hand.
 
 ## Features
 
-- Canvas-rendered electron and photon field panels.
+- Canvas-rendered electron and photon field panels drawn as occluded 3D contour surfaces.
 - Tools for selecting, placing, steering, and clearing packets.
 - Electron, positron, and photon packet types.
 - Three presets: Uniformity, Mirror Excitations, and Annihilation.
 - Play, pause, step, reset, time scale, and trace controls.
-- Selected-packet inspector with charge, mass, spin label, energy, momentum, kinetic energy, gamma, direction, and speed.
-- Annihilation event panel with before and after energy and momentum values.
+- Selected-packet inspector with mass, charge, spin quantum number, energy, momentum, kinetic energy, gamma, beta, de Broglie wavelength, and photon helicity.
+- Annihilation event panel with before/after energy and momentum, √s, photon opening angle, COM scattering angle, and the measured conservation residual.
 - Client-side only runtime, no backend, accounts, database, analytics, or external runtime data.
 - Static deployment output for Cloudflare Pages or any static host.
 
@@ -112,7 +104,7 @@ For Cloudflare Pages or another static host:
 - Build command: `bun run build`
 - Output directory: `dist`
 
-The app ships with `public/_headers`, `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg`, `public/og-card.svg`, and `public/site.webmanifest`.
+The app ships with `public/_headers`, `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg`, `public/og-card.png` (plus the `og-card.svg` source), and `public/site.webmanifest`.
 
 ## License
 

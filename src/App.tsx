@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { FieldStage } from './components/FieldStage'
 import {
+  computeBeta,
+  computeDeBroglieWavelength,
   computeEnergy,
   computeKineticEnergy,
   computeLorentzGamma
@@ -24,12 +26,14 @@ import type { GameLoopUIState } from './engine/gameLoop'
 type Tool = 'select' | 'electron' | 'positron' | 'photon'
 type AppView = 'lab' | 'about'
 
-const TOOLS: { key: Tool; label: string; hint: string }[] = [
-  { key: 'select', label: 'Select', hint: 'Click a packet to inspect. Drag to move it.' },
-  { key: 'electron', label: 'Electron', hint: 'Drag on the electron field to drop an e⁻.' },
-  { key: 'positron', label: 'Positron', hint: 'Drag on the electron field to drop an e⁺.' },
-  { key: 'photon', label: 'Photon', hint: 'Drag on the photon field to fire a photon.' }
+const TOOLS: { key: Tool; label: string }[] = [
+  { key: 'select', label: 'Select' },
+  { key: 'electron', label: 'Electron' },
+  { key: 'positron', label: 'Positron' },
+  { key: 'photon', label: 'Photon' }
 ]
+
+const SELECT_HELP = 'Click a packet to inspect. Drag to move it.'
 
 const PRESETS: { id: PresetId; label: string }[] = [
   { id: 'uniformity', label: 'Uniformity' },
@@ -144,11 +148,13 @@ const MathSpan = ({ children, className }: { children: ReactNode; className?: st
   <span className={`math ${className ?? ''}`}>{children}</span>
 )
 
-// Real-world reference values shown in the selection card.
+// Real-world reference values shown in the selection card. Spin is the
+// quantum number s, not the magnitude |S| = √(s(s+1))·ℏ or the projection
+// S_z = ±ℏ/2.
 const REAL_CONSTANTS = {
-  electron: { m: '9.109·10⁻³¹ kg', q: '−1.602·10⁻¹⁹ C', spin: 'ℏ/2' },
-  positron: { m: '9.109·10⁻³¹ kg', q: '+1.602·10⁻¹⁹ C', spin: 'ℏ/2' },
-  photon: { m: '0', q: '0', spin: 'ℏ' }
+  electron: { m: '9.109·10⁻³¹ kg', q: '−1.602·10⁻¹⁹ C', spin: '½' },
+  positron: { m: '9.109·10⁻³¹ kg', q: '+1.602·10⁻¹⁹ C', spin: '½' },
+  photon: { m: '0', q: '0', spin: '1' }
 } as const
 
 // ---------------------------------------------------------------------------
@@ -290,16 +296,15 @@ export default function App() {
     />
   ) : null
 
-  const helpLine = useMemo(() => {
-    const match = TOOLS.find((t) => t.key === tool)
-    if (tool === 'select') return 'Click a packet to inspect. Drag to move it.'
-    return match?.hint ?? ''
-  }, [tool])
-
   const activeTargetSlab = tool === 'photon' ? 'photon' : tool === 'select' ? null : 'electron'
-  const activeTargetLabel = activeTargetSlab
-    ? 'Drag on the field'
-    : null
+  const activeTargetLabel =
+    tool === 'electron'
+      ? 'drag here to launch an e⁻'
+      : tool === 'positron'
+        ? 'drag here to launch an e⁺'
+        : tool === 'photon'
+          ? 'drag here to fire a photon'
+          : null
 
   return (
     <div className="app">
@@ -382,6 +387,10 @@ export default function App() {
                 <span className="counter-label">time</span>
                 <span className="counter-value mono">{formatNumber(simTime, 3)}</span>
               </div>
+              <div className="counter counter--faint">
+                <span className="counter-label">units</span>
+                <span className="counter-value mono">c = mₑ = 1</span>
+              </div>
             </div>
 
             {selectionCard}
@@ -389,7 +398,7 @@ export default function App() {
 
             {activeTargetSlab && (
               <div
-                className={`target-banner target-banner--${activeTargetSlab}`}
+                className={`target-banner target-banner--${tool} target-banner--on-${activeTargetSlab}`}
                 aria-hidden="true"
               >
                 <span className="target-banner-pulse" />
@@ -397,7 +406,7 @@ export default function App() {
               </div>
             )}
 
-            <div className="help-line">{helpLine}</div>
+            {tool === 'select' ? <div className="help-line">{SELECT_HELP}</div> : null}
           </main>
 
           {/* Bottom dock */}
@@ -511,9 +520,14 @@ const SelectionCard = ({
   const kind = nameFor(excitation)
   const display = displayFor[kind]
   const real = REAL_CONSTANTS[kind]
+  const isPhoton = excitation.field === 'photon'
   const energy = computeEnergy(excitation)
   const kinetic = computeKineticEnergy(excitation)
   const gamma = computeLorentzGamma(excitation)
+  const beta = computeBeta(excitation)
+  const wavelength = computeDeBroglieWavelength(excitation)
+  const helicity =
+    excitation.helicity == null ? 'n/a' : excitation.helicity > 0 ? '+1' : '−1'
   const p = excitation.momentum
   const pMag = Math.hypot(p.x, p.y)
   const angle = normalizedDegrees(degreesFromMomentum(p))
@@ -547,7 +561,7 @@ const SelectionCard = ({
         </div>
         <div className="math-row">
           <MathSpan>
-            |<em>S</em>| = {real.spin}
+            <em>s</em> = {real.spin}
           </MathSpan>
         </div>
       </dl>
@@ -565,9 +579,24 @@ const SelectionCard = ({
           <span className="micro">K</span>
           <span className="mono">{formatNumber(kinetic, 3)}</span>
         </div>
+        {isPhoton ? (
+          <div>
+            <span className="micro">h</span>
+            <span className="mono">{helicity}</span>
+          </div>
+        ) : (
+          <div>
+            <span className="micro">γ</span>
+            <span className="mono">{Number.isFinite(gamma) ? formatNumber(gamma, 3) : '∞'}</span>
+          </div>
+        )}
         <div>
-          <span className="micro">γ</span>
-          <span className="mono">{Number.isFinite(gamma) ? formatNumber(gamma, 3) : '∞'}</span>
+          <span className="micro">β</span>
+          <span className="mono">{formatNumber(beta, 3)}</span>
+        </div>
+        <div>
+          <span className="micro">λ</span>
+          <span className="mono">{Number.isFinite(wavelength) ? formatNumber(wavelength, 2) : '∞'}</span>
         </div>
       </div>
       <div className="selection-card-foot">
@@ -608,13 +637,19 @@ const SelectionCard = ({
   )
 }
 
+const radToDeg = (radians: number): number => (radians * 180) / Math.PI
+
 const EventCard = ({
   summary
 }: {
   summary: import('./types/particle').AnnihilationSummary
 }) => {
   const checks = summary.checks
+  const scattering = summary.scattering
   const pass = (value: boolean) => (value ? 'pass' : 'warn')
+  const maxResidual = checks
+    ? Math.max(checks.energyResidualMagnitude, checks.momentumResidualMagnitude)
+    : null
   return (
     <aside className="overlay overlay--br event-card" aria-label="Annihilation event">
       <div className="event-card-head">
@@ -656,12 +691,29 @@ const EventCard = ({
             {summary.mode === 'center-of-momentum' ? 'COM' : 'collinear'}
           </span>
         </div>
+        {scattering ? (
+          <>
+            <div>
+              <span className="micro">γγ angle lab</span>
+              <span className="mono">{formatNumber(radToDeg(scattering.photonOpeningAngleLab), 1)}°</span>
+            </div>
+            <div>
+              <span className="micro">θ* com</span>
+              <span className="mono">{formatNumber(radToDeg(scattering.scatteringAngleCm), 1)}°</span>
+            </div>
+          </>
+        ) : null}
       </div>
       {checks ? (
         <div className="event-card-checks">
           <span className={`pill pill--${pass(checks.diagnostics.energyResidualPass)}`}>E ok</span>
           <span className={`pill pill--${pass(checks.diagnostics.momentumResidualPass)}`}>p ok</span>
           <span className={`pill pill--${pass(checks.diagnostics.photonAntiparallelPass)}`}>γγ ok</span>
+          {maxResidual != null ? (
+            <span className="event-card-residual micro mono">
+              max |Δ| {maxResidual === 0 ? '= 0' : `≈ ${maxResidual.toExponential(0)}`}
+            </span>
+          ) : null}
         </div>
       ) : null}
     </aside>
@@ -676,7 +728,7 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
       <p className="about-lede">
         A browser sketch of electron and photon fields. Drop packets, watch them move,
         and check the numbers when an electron and positron collide.
-        The assumptions are right there in the interface.
+        The simplifications are listed further down this page.
       </p>
       <div className="about-actions">
         <button type="button" className="about-cta" onClick={onOpenLab}>
@@ -689,7 +741,7 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
     <section className="about-brief" aria-label="What this is">
       <p>
         Field Viewer is a sketch, not a solver. It draws excitations on a shared canvas
-        so you can read charge, momentum, and field identity directly, no textbook required.
+        so you can read charge, momentum, and field identity directly off the screen.
       </p>
     </section>
 

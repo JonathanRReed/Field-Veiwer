@@ -1,32 +1,13 @@
 import type { PresetId } from '../types/simulation'
 import type { SimulationState } from '../types/particle'
 import { makeExcitation } from './engine'
-import {
-  electronDefaults,
-  positronDefaults,
-  buildTwoPhotonMomenta
-} from './physics'
+import { electronDefaults, positronDefaults } from './physics'
 
 export interface PresetStateMeta {
   id: PresetId
   name: string
   description: string
   state: SimulationState
-}
-
-export const presetSummaries: { [key: string]: string[] } = {
-  uniformity: [
-    'All electrons share the same mass, spin, and field label.',
-    'Only position and momentum differ between them.'
-  ],
-  mirror: [
-    'Electron and positron have opposite charge, same mass and spin.',
-    'The way the packet faces is just for looks; charge is stored in the data.'
-  ],
-  annihilation: [
-    'Crash an electron into a positron and read the conservation panel.',
-    'Energy and momentum before and after are checked every time.'
-  ]
 }
 
 const uniformity = (): PresetStateMeta => {
@@ -148,7 +129,6 @@ const mirror = (): PresetStateMeta => {
 const annihilation = (): PresetStateMeta => {
   const eMomentum = { x: 0.7, y: 0.13 }
   const pMomentum = { x: -0.7, y: -0.13 }
-  buildTwoPhotonMomenta(eMomentum, pMomentum)
 
   const excitations = [
     makeExcitation({

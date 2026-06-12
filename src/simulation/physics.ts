@@ -347,8 +347,12 @@ export const computeKinematicsFromExcitations = (excitations: Excitation[]): Rel
   return computeKinematicsFromEnergyMomentum(energy, momentum)
 }
 
+/**
+ * Kinetic energy K = E - m (c = 1). For a massless photon this is the full
+ * energy E = |p|; for a massive packet it vanishes at rest.
+ */
 export const computeKineticEnergy = (excitation: Excitation): number =>
-  excitation.field === 'photon' ? 0 : computeEnergy(excitation) - excitation.mass
+  computeEnergy(excitation) - excitation.mass
 
 export const computeProperTimeRate = (excitation: Excitation): number => {
   if (excitation.field === 'photon') {
@@ -394,7 +398,11 @@ export const buildTwoPhotonMomenta = (p1: Vec2, p2: Vec2): [Vec2, Vec2] => {
   return buildTwoPhotonMomentaFromEnergyMomentum(totalEnergy, add(p1, p2))
 }
 
-export const computeMomentumFromSpeed = (excitation: Excitation, dt: number): Vec2 => {
+/**
+ * Displacement over dt from the group velocity v = p / E (photons advance at
+ * exactly c = 1 along p̂).
+ */
+export const computeDisplacement = (excitation: Excitation, dt: number): Vec2 => {
   if (excitation.field === 'photon') {
     const pMag = magnitude(excitation.momentum)
     if (pMag === 0) {
