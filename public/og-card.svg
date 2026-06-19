@@ -44,6 +44,6 @@
     <text x="0" y="92" fill="#e7ecf1" font-family="Georgia, Times New Roman, serif" font-size="82">Wave packets,</text>
     <text x="0" y="176" fill="#e7ecf1" font-family="Georgia, Times New Roman, serif" font-size="82">not particles.</text>
     <text x="0" y="246" fill="rgba(231,236,241,.72)" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="30">Inspect electron, positron, and photon fields in the browser.</text>
-    <text x="0" y="300" fill="rgba(231,236,241,.5)" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24">Client-side physics sketch by Jonathan R Reed</text>
+    <text x="0" y="300" fill="rgba(231,236,241,.5)" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24">Client-side physics sketch by Jonathan R. Reed</text>
   </g>
 </svg>

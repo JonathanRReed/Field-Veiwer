@@ -798,7 +798,7 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
 
     <section className="creator-note" aria-label="Creator">
       <div className="creator-body">
-        <p className="creator-name">Jonathan R Reed</p>
+        <p className="creator-name">Jonathan R. Reed</p>
         <p className="creator-desc">
           Built this to see if a physics demo could be honest about what it omits.
           If you find a bug in the conservation math, it is a bug.

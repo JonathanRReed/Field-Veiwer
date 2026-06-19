@@ -2,7 +2,7 @@
   "name": "field-viewer",
   "version": "0.1.0",
   "description": "Client-side field model for inspecting electron and photon packets, antiparticles, and annihilation checks.",
-  "author": "Jonathan R Reed",
+  "author": "Jonathan R. Reed",
   "license": "MIT",
   "homepage": "https://fieldviewer.jonathanrreed.com/",
   "keywords": [
