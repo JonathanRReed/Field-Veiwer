@@ -793,7 +793,7 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
         <p className="creator-name">Jonathan R. Reed</p>
         <p className="creator-desc">
           Built this to see if a physics demo could be honest about what it omits.
-          If you find a bug in the conservation math, it is a bug.
+          If a conservation check fails, that is a bug in my code, not the physics.
         </p>
         <a href="https://jonathanrreed.com/" rel="author external noopener noreferrer" target="_blank">
           jonathanrreed.com

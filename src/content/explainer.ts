@@ -28,7 +28,7 @@ export const explainSections: ExplainSection[] = [
     title: 'What this model simplifies',
     points: [
       'Not a full quantum field equation solver.',
-      'Field equations and quantization are not solved exactly; this is a visual map, not a literal numerical method.',
+      'Field equations and quantization are not solved at all; this is a visual map, not a numerical method.',
       'No spinor math, polarization dynamics, gauge degrees of freedom, or pair-production channels.',
       'No collision dynamics beyond overlap triggers and deterministic replacement.'
     ]
