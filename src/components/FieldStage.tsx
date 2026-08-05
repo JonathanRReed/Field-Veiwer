@@ -51,7 +51,13 @@ export const FieldStage = () => {
         gameLoop.onPointerLeave()
       }}
     >
-      <canvas ref={canvasRef} className="stage-canvas" aria-label="Field stage" />
+      <canvas ref={canvasRef} className="stage-canvas" aria-label="Field stage">
+        Your browser cannot draw the field stage. It is a dark canvas split into two
+        horizontal slabs: the electron field on top, carrying electron and positron packets,
+        and the photon field below it. Each packet is a moving bump on its field, and an
+        overlay reports energy, momentum, and the conservation checks after an electron and
+        positron annihilate. The written explanation lower on this page covers the same ground.
+      </canvas>
       <div className="stage-labels" aria-hidden="true">
         <span className="stage-label stage-label--electron">electron field</span>
         <span className="stage-label stage-label--photon">photon field</span>

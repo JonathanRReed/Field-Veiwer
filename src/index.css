@@ -38,7 +38,7 @@
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
   width: 100%;
   margin: 0;
   color-scheme: dark;
@@ -49,7 +49,9 @@ body,
   letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
+  /* The lab fills the first viewport; the written explainer below it is the
+     only reason the document scrolls at all. Horizontal scroll stays off. */
+  overflow-x: hidden;
 }
 
 button {
@@ -114,8 +116,10 @@ input[type='range']:disabled::-webkit-slider-thumb {
  * ========================================================================== */
 
 .app {
-  position: fixed;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template-rows: auto 1fr auto;
   background:
@@ -1797,5 +1801,112 @@ input[type='range']:disabled::-webkit-slider-thumb {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
+  }
+}
+
+/* ==========================================================================
+ * Static page explainer (outside #root, so it survives React mounting and
+ * ships in the HTML that non-rendering crawlers actually read)
+ * ========================================================================== */
+
+.page-explainer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(25, 35, 60, 0.35), transparent 60%),
+    var(--bg-0);
+  padding: clamp(48px, 8vh, 96px) clamp(20px, 5vw, 88px) clamp(56px, 9vh, 112px);
+}
+
+.page-explainer-inner {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.page-explainer h2 {
+  margin: 0 0 24px;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.page-explainer h3 {
+  margin: 40px 0 14px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--electron);
+}
+
+.page-explainer p {
+  margin: 0 0 18px;
+  color: var(--text-soft);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.page-explainer ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-explainer ul li {
+  position: relative;
+  padding-left: 18px;
+  margin-bottom: 12px;
+  color: var(--text-soft);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.page-explainer ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--line-bright);
+}
+
+.page-explainer-refs li {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.page-explainer-refs em {
+  color: var(--text-soft);
+}
+
+.page-explainer a {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-bright);
+  overflow-wrap: anywhere;
+}
+
+.page-explainer a:hover {
+  text-decoration-color: var(--electron);
+}
+
+.page-explainer-foot {
+  margin: 44px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 520px) {
+  .page-explainer p {
+    font-size: 15px;
   }
 }

@@ -77,11 +77,30 @@
             "inLanguage": "en-US"
           },
           {
-            "@type": "CreativeWork",
+            "@type": ["WebApplication", "CreativeWork"],
             "@id": "https://fieldviewer.jonathanrreed.com/#field-viewer",
             "name": "Field Viewer",
             "url": "https://fieldviewer.jonathanrreed.com/",
             "isAccessibleForFree": true,
+            "applicationCategory": "EducationalApplication",
+            "applicationSubCategory": "Physics visualization",
+            "operatingSystem": "Any device with a modern web browser",
+            "browserRequirements": "Requires JavaScript and HTML5 canvas",
+            "inLanguage": "en-US",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "featureList": [
+              "Three presets: Uniformity, Mirror pair, Annihilation",
+              "Spawn tools for electron, positron, and photon packets",
+              "Play, pause, single step, and reset transport controls",
+              "Packet inspector for steering momentum by hand",
+              "Time scale slider and motion traces toggle",
+              "Annihilation mode switch between collinear and center-of-momentum",
+              "Energy, momentum, and invariant mass checks on every annihilation event"
+            ],
             "genre": [
               "interactive physics visualization",
               "browser simulation",
@@ -95,6 +114,32 @@
             "creator": {
               "@id": "https://jonathanrreed.com/#person"
             },
+            "citation": [
+              {
+                "@type": "ScholarlyArticle",
+                "name": "The Quantum Theory of the Electron",
+                "author": "P. A. M. Dirac",
+                "datePublished": "1928",
+                "isPartOf": "Proceedings of the Royal Society A",
+                "url": "https://doi.org/10.1098/rspa.1928.0023"
+              },
+              {
+                "@type": "ScholarlyArticle",
+                "name": "The Positive Electron",
+                "author": "Carl D. Anderson",
+                "datePublished": "1933",
+                "isPartOf": "Physical Review",
+                "url": "https://doi.org/10.1103/PhysRev.43.491"
+              },
+              {
+                "@type": "ScholarlyArticle",
+                "name": "Space-Time Approach to Quantum Electrodynamics",
+                "author": "Richard P. Feynman",
+                "datePublished": "1949",
+                "isPartOf": "Physical Review",
+                "url": "https://doi.org/10.1103/PhysRev.76.769"
+              }
+            ],
             "description": "A browser sketch of electron and photon fields with conservation checks for electron-positron annihilation."
           }
         ]
@@ -112,7 +157,7 @@
         </p>
         <nav aria-label="Field Viewer sections">
           <a href="#main-content">Lab</a>
-          <a href="#main-content">About</a>
+          <a href="#about-field-viewer">What you are looking at</a>
         </nav>
         <section>
           <h2>What it does</h2>
@@ -123,9 +168,95 @@
             <li>When an electron and positron meet, they turn into two photons.</li>
           </ul>
         </section>
-        <p>Enable JavaScript to run the simulation.</p>
+        <noscript>
+          <h2>Without JavaScript</h2>
+          <p>
+            The lab itself is a single HTML canvas driven by JavaScript, so it will not run
+            here. What you are missing is a dark stage split into two horizontal slabs: the
+            electron field on top, carrying teal electron packets and pink positron packets,
+            and the photon field below it, carrying amber photon packets. Each packet is drawn
+            as a moving bump on its field, and an overlay reports energy, momentum, and the
+            conservation checks after an electron and positron annihilate. The written
+            explanation below this section covers the same ground without the animation.
+          </p>
+        </noscript>
       </main>
     </div>
+    <section class="page-explainer" id="about-field-viewer" aria-labelledby="explainer-title">
+      <div class="page-explainer-inner">
+        <h2 id="explainer-title">What you are looking at</h2>
+        <p>
+          A particle here is a wave packet, not a dot. The electron field covers the whole
+          upper slab of the canvas, and an electron is a localized bump in that field with a
+          position and a momentum. Every electron packet is built from the same template: same
+          mass, same charge, same spin label. Only position and momentum differ. That sounds
+          like a slogan until you can select two packets and read identical numbers off both,
+          which is the main thing I wanted this to show.
+        </p>
+        <p>
+          The lower slab is the photon field. A positron is the same electron field with the
+          charge flipped, not a separate kind of stuff, so it sits on the top slab too. When an
+          electron and a positron overlap, the app deletes both, spawns two photon packets
+          below, and prints the bookkeeping: energy in and out, momentum in and out, the
+          invariant mass √s, and a pass or fail badge for each conservation check. If a badge
+          fails, that's a bug in my code, not a result.
+        </p>
+
+        <h3>Controls</h3>
+        <ul>
+          <li>Presets across the top load Uniformity, Mirror pair, or Annihilation.</li>
+          <li>
+            Pick a spawn tool in the bottom dock, or press 1 through 4 for select, electron,
+            positron, photon. Drag on a slab to launch a packet in that direction.
+          </li>
+          <li>Space plays and pauses. S steps one frame while paused. R resets the preset.</li>
+          <li>Click a packet to open the inspector and steer its momentum by hand.</li>
+          <li>The time slider slows everything down, and the traces toggle leaves trails.</li>
+          <li>
+            Settings switches annihilation between collinear and center-of-momentum mode, with
+            a scattering angle for the COM case.
+          </li>
+        </ul>
+
+        <h3>What it skips</h3>
+        <p>
+          This is a sketch, not a solver. No field equations are integrated, and there are no
+          spinors, no polarization, no Pauli exclusion, and no pair production. Motion is
+          deterministic and units are set so c = mₑ = 1. The About tab inside the app lists
+          every simplification I know about, & I would rather have the limits printed on the
+          page than buried in the animation.
+        </p>
+
+        <h3>Sources</h3>
+        <ul class="page-explainer-refs">
+          <li>
+            Dirac, P. A. M. (1928). The quantum theory of the electron.
+            <em>Proceedings of the Royal Society A</em>, 117, 610–624.
+            <a href="https://doi.org/10.1098/rspa.1928.0023" rel="noopener noreferrer" target="_blank"
+              >doi.org/10.1098/rspa.1928.0023</a
+            >
+          </li>
+          <li>
+            Anderson, C. D. (1933). The positive electron. <em>Physical Review</em>, 43, 491–494.
+            <a href="https://doi.org/10.1103/PhysRev.43.491" rel="noopener noreferrer" target="_blank"
+              >doi.org/10.1103/PhysRev.43.491</a
+            >
+          </li>
+          <li>
+            Feynman, R. P. (1949). Space-time approach to quantum electrodynamics.
+            <em>Physical Review</em>, 76, 769–789.
+            <a href="https://doi.org/10.1103/PhysRev.76.769" rel="noopener noreferrer" target="_blank"
+              >doi.org/10.1103/PhysRev.76.769</a
+            >
+          </li>
+        </ul>
+
+        <p class="page-explainer-foot">
+          Free to use, runs entirely in your browser, no accounts and no analytics. Built by
+          <a href="https://jonathanrreed.com/" rel="author noopener noreferrer">Jonathan R. Reed</a>.
+        </p>
+      </div>
+    </section>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
