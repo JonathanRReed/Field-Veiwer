@@ -144,8 +144,7 @@ export const presetGuides: Record<PresetId, PresetGuide> = {
 export const limitationStatements: string[] = [
   'No Pauli exclusion, electrons can overlap freely.',
   'No scattering, polarization, pair production, or higher-order processes.',
-  'Motion is deterministic and simplified; no field equation is solved.',
-  'No backend solver. Everything on screen is a rendered analogy.'
+  'No field equation is solved. Motion is deterministic and everything on screen is a rendered analogy.'
 ]
 
 export const requiredStatements: string[] = [
@@ -153,9 +152,7 @@ export const requiredStatements: string[] = [
   'Electrons are identical excitations of one shared field.',
   'A positron is just the same field with opposite charge.',
   'Annihilation moves energy into photon excitations; there is no “pure energy” step.',
-  'Energy and momentum are actually conserved in the math.',
-  'This app skips Pauli exclusion and many-body statistics.',
-  'Real quantum field theory is far more complex than this toy.'
+  'Energy and momentum are actually conserved in the math.'
 ]
 
 export const fieldCatalog = [

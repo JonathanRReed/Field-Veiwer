@@ -728,7 +728,6 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
       <p className="about-lede">
         A browser sketch of electron and photon fields. Drop packets, watch them move,
         and check the numbers when an electron and positron collide.
-        The simplifications are listed further down this page.
       </p>
       <div className="about-actions">
         <button type="button" className="about-cta" onClick={onOpenLab}>
@@ -736,14 +735,6 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
         </button>
         <span className="about-note">Client-side only. No analytics, no accounts.</span>
       </div>
-    </section>
-
-    <section className="about-brief" aria-label="What this is">
-      <p>
-        Field Viewer draws excitations on a shared canvas so you can read charge,
-        momentum, and field identity directly off the screen. No field equations are
-        integrated behind it.
-      </p>
     </section>
 
     <section className="preset-guide" aria-label="Preset guide">
