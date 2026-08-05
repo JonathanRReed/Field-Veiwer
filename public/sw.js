@@ -1,5 +1,5 @@
 /* eslint-env serviceworker */
-const CACHE_NAME = 'field-viewer-v3'
+const CACHE_NAME = 'field-viewer-v4'
 const PRECACHE_ASSETS = ['/index.html', '/']
 
 self.addEventListener('install', (event) => {
