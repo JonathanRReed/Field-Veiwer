@@ -724,7 +724,7 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
   <main className="about-page" id="main-content" tabIndex={-1}>
     <section className="about-hero" aria-labelledby="about-title">
       <p className="about-kicker">Field Viewer</p>
-      <h1 id="about-title">Wave packets, not particles.</h1>
+      <h1 id="about-title">A particle is a wave packet.</h1>
       <p className="about-lede">
         A browser sketch of electron and photon fields. Drop packets, watch them move,
         and check the numbers when an electron and positron collide.
@@ -740,8 +740,9 @@ const AboutPage = ({ onOpenLab }: { onOpenLab: () => void }) => (
 
     <section className="about-brief" aria-label="What this is">
       <p>
-        Field Viewer is a sketch, not a solver. It draws excitations on a shared canvas
-        so you can read charge, momentum, and field identity directly off the screen.
+        Field Viewer draws excitations on a shared canvas so you can read charge,
+        momentum, and field identity directly off the screen. No field equations are
+        integrated behind it.
       </p>
     </section>
 

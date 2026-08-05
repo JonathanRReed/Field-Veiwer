@@ -41,8 +41,8 @@
   <path d="M803 214h46M909 238h46M932 215v46M838 444h44M954 404h44" stroke="#03060c" stroke-width="7" stroke-linecap="round" opacity=".85" />
   <g transform="translate(92 104)">
     <text x="0" y="0" fill="#8cf0d4" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24" letter-spacing="7">FIELD VIEWER</text>
-    <text x="0" y="92" fill="#e7ecf1" font-family="Georgia, Times New Roman, serif" font-size="82">Wave packets,</text>
-    <text x="0" y="176" fill="#e7ecf1" font-family="Georgia, Times New Roman, serif" font-size="82">not particles.</text>
+    <text x="0" y="92" fill="#e7ecf1" font-family="Georgia, Times New Roman, serif" font-size="82">A particle is</text>
+    <text x="0" y="176" fill="#e7ecf1" font-family="Georgia, Times New Roman, serif" font-size="82">a wave packet.</text>
     <text x="0" y="246" fill="rgba(231,236,241,.72)" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="30">Inspect electron, positron, and photon fields in the browser.</text>
     <text x="0" y="300" fill="rgba(231,236,241,.5)" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="24">Client-side physics sketch by Jonathan R. Reed</text>
   </g>
