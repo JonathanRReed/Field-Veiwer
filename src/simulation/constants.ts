@@ -8,7 +8,6 @@ export const ELECTRON_PARTICLE_COLOR = '#ff3f56'
 export const POSITRON_PARTICLE_COLOR = '#ff1d45'
 export const PHOTON_COLOR = '#ffd56a'
 
-export const DEFAULT_SIMULATION_STEP = 1 / 60
 export const DEFAULT_ANNIHILATION_DISTANCE = 0.075
 export const DEFAULT_ANNIHILATION_MODE = 'center-of-momentum'
 export const DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE = Math.PI / 2
