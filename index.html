@@ -51,6 +51,13 @@
       content="A browser sketch of electron and photon fields. Drop packets, watch them move, check the conservation math when an electron and positron collide."
     />
     <meta name="twitter:image" content="https://fieldviewer.jonathanrreed.com/og-card.png" />
+    <!--
+      dateModified below is a committed literal, so a rebuild of an unchanged
+      commit emits the same date. It has to stay equal to <lastmod> for this URL
+      in public/sitemap.xml — change both in the same commit as the content.
+      Editing this block also changes its CSP hash in public/_headers;
+      `bun run test` fails until that hash is updated.
+    -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -86,6 +93,7 @@
             "operatingSystem": "Any device with a modern web browser",
             "browserRequirements": "Requires JavaScript and HTML5 canvas",
             "inLanguage": "en-US",
+            "dateModified": "2026-08-06",
             "offers": {
               "@type": "Offer",
               "price": "0",
