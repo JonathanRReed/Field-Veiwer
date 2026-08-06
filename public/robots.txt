@@ -128,4 +128,37 @@ Disallow: /
 User-agent: Amazonbot
 Disallow: /
 
+# ===========================================================================
+# DISALLOWED — legacy and third-party training-adjacent tokens (template v2)
+# Added 2026-08-04 after rollout review: these previously fell through to "*"
+# ===========================================================================
+
+# Anthropic legacy tokens (superseded by ClaudeBot/Claude-SearchBot/Claude-User)
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: claude-web
+Disallow: /
+
+# Cohere training crawler
+User-agent: cohere-ai
+Disallow: /
+
+# Allen Institute corpus crawler
+User-agent: AI2Bot
+Disallow: /
+
+# Commercial scraping/corpus services widely resold as training data
+User-agent: Diffbot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: omgili
+Disallow: /
+
+User-agent: omgilibot
+Disallow: /
+
 Sitemap: https://fieldviewer.jonathanrreed.com/sitemap.xml
