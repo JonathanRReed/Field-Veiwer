@@ -185,6 +185,33 @@
       <div class="page-explainer-inner">
         <h2 id="explainer-title">What you are looking at</h2>
         <p>
+          Field Viewer draws electrons, positrons, and photons as wave packets on two
+          fields in the browser, and prints the conservation math when an electron and a
+          positron annihilate.
+        </p>
+        <ul>
+          <li>
+            Two fields on one canvas: the electron field on the top slab, the photon field
+            below it.
+          </li>
+          <li>
+            Three kinds of packet (electron, positron, photon) and three presets
+            (Uniformity, Mirror pair, Annihilation).
+          </li>
+          <li>
+            Physics runs on a fixed 1/120 second step, up to 12 substeps a frame, with
+            units set so c = m<sub>e</sub> = 1.
+          </li>
+          <li>
+            An electron and a positron annihilate once they close to within 0.075 units, in
+            either collinear or center-of-momentum mode, with a 90° default scattering angle.
+          </li>
+          <li>
+            Each annihilation is checked for energy, momentum, and invariant mass squared.
+            A residual has to land under 1e-10 to pass.
+          </li>
+        </ul>
+        <p>
           A particle here is a wave packet. The electron field covers the whole
           upper slab of the canvas, and an electron is a localized bump in that field with a
           position and a momentum. Every electron packet is built from the same template: same
@@ -217,7 +244,7 @@
           </li>
         </ul>
 
-        <h3>What it skips</h3>
+        <h3>What does the simulation skip?</h3>
         <p>
           No field equations are integrated here, and there are no spinors. Motion is
           deterministic and units are set so c = mₑ = 1. The About tab lists every other
