@@ -315,9 +315,15 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          <span className="brand-name">
-            <em>Field</em> Viewer
-          </span>
+          {view === 'lab' ? (
+            <h1 className="brand-name">
+              <em>Field</em> Viewer
+            </h1>
+          ) : (
+            <span className="brand-name">
+              <em>Field</em> Viewer
+            </span>
+          )}
         </div>
         {view === 'lab' ? (
           <nav className="presets" aria-label="Presets">

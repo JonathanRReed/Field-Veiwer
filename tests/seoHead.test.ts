@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vitest'
 
 const repoRoot = join(import.meta.dirname, '..')
 const indexHtml = readFileSync(join(repoRoot, 'index.html'), 'utf8')
+const appSource = readFileSync(join(repoRoot, 'src', 'App.tsx'), 'utf8')
 const headers = readFileSync(join(repoRoot, 'public', '_headers'), 'utf8')
 
 /** Every <script> in index.html that has no src, in document order. */
@@ -56,6 +57,17 @@ describe('CSP hashes stay in sync with index.html', () => {
     for (const hash of declared) {
       expect(live, `public/_headers pins a stale hash: '${hash}'`).toContain(hash)
     }
+  })
+
+  test('permits the automatically injected Cloudflare analytics beacon', () => {
+    expect(cspDirective('script-src')).toContain('https://static.cloudflareinsights.com')
+    expect(cspDirective('connect-src')).toContain("'self'")
+  })
+})
+
+describe('document outline', () => {
+  test('the interactive lab exposes its product name as a heading', () => {
+    expect(appSource).toContain('<h1 className="brand-name">')
   })
 })
 
