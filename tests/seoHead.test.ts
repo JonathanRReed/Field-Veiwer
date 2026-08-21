@@ -69,19 +69,20 @@ describe('structured data', () => {
     expect(() => JSON.parse(blocks[0].body)).not.toThrow()
   })
 
-  test('the graph describes a WebApplication with visible facts', () => {
+  test('the graph describes the project without claiming an unrated app rich result', () => {
     const graph = JSON.parse(blocks[0].body)['@graph'] as Record<string, unknown>[]
     const types = (node: Record<string, unknown>) =>
       Array.isArray(node['@type']) ? (node['@type'] as string[]) : [node['@type'] as string]
-    const app = graph.find((node) => types(node).includes('WebApplication'))
+    const work = graph.find((node) => types(node).includes('CreativeWork'))
 
-    expect(app, 'the @graph must contain a WebApplication node').toBeTruthy()
-    expect(app!.url).toBe('https://fieldviewer.jonathanrreed.com/')
-    expect(Array.isArray(app!.featureList)).toBe(true)
-    expect((app!.citation as unknown[]).length).toBe(3)
+    expect(work, 'the @graph must contain a CreativeWork node').toBeTruthy()
+    expect(graph.flatMap(types)).not.toContain('WebApplication')
+    expect(graph.flatMap(types)).not.toContain('SoftwareApplication')
+    expect(work!.url).toBe('https://fieldviewer.jonathanrreed.com/')
+    expect((work!.citation as unknown[]).length).toBe(3)
 
     // Citations in the markup and citations in the graph must not drift apart.
-    for (const citation of app!.citation as Record<string, string>[]) {
+    for (const citation of work!.citation as Record<string, string>[]) {
       expect(indexHtml).toContain(citation.url.replace('https://', ''))
     }
   })
