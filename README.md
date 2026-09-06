@@ -1,22 +1,12 @@
 # Field Viewer
 
-Field Viewer is a client-side physics visualization for inspecting electron, positron, and photon packets and checking the conservation math behind annihilation events.
+Inspect electron, positron, and photon packets in your browser. Place and steer packets, trigger electron-positron annihilation, and check the energy and momentum residuals in the event panel.
 
-It is not a quantum field theory solver. The kinematics it does implement (relativistic energy-momentum, Lorentz boosts, two-body annihilation) are implemented exactly, the simplifications are stated in the interface, and the event panel prints the conservation residuals so the bookkeeping can be checked by hand.
+This is not a quantum field theory solver. It implements relativistic energy-momentum, Lorentz boosts, and two-body annihilation with the simplifications listed below. It runs entirely in the browser, without accounts, a backend, analytics, or external runtime data.
 
-## Features
+## Run locally
 
-- Canvas-rendered electron and photon field panels drawn as occluded 3D contour surfaces.
-- Tools for selecting, placing, steering, and clearing packets.
-- Electron, positron, and photon packet types.
-- Three presets: Uniformity, Mirror Excitations, and Annihilation.
-- Play, pause, step, reset, time scale, and trace controls.
-- Selected-packet inspector with mass, charge, spin quantum number, energy, momentum, kinetic energy, gamma, beta, de Broglie wavelength, and photon helicity.
-- Annihilation event panel with before/after energy and momentum, √s, photon opening angle, COM scattering angle, and the measured conservation residual.
-- Client-side only runtime, no backend, accounts, database, analytics, or external runtime data.
-- Static deployment output for Cloudflare Pages or any static host.
-
-## Quick start
+Requires Bun 1.3.0+ and Node 22.12.0+.
 
 ```bash
 bun install
@@ -25,87 +15,57 @@ bun run dev
 
 ## Controls
 
-- Select: inspect a packet and drag to move it.
-- Electron, positron, photon: drag on the matching field to create a packet.
-- Space: play or pause.
-- S: step one frame when paused.
-- R: reset.
-- 1, 2, 3, 4: switch tools.
-- Escape: close the settings panel or clear selection.
+| Control | Action |
+| --- | --- |
+| Select tool | Inspect a packet; drag to move it |
+| Electron, positron, or photon tool | Drag on the matching field to create a packet |
+| Space | Play or pause |
+| S | Step one frame while paused |
+| R | Reset |
+| 1, 2, 3, 4 | Switch tools |
+| Escape | Close settings or clear selection |
 
-## Model scope
+Start with Uniformity, Mirror Excitations, or Annihilation. Time-scale and trace controls help inspect motion.
 
-Field Viewer uses normalized simulation units:
+The packet inspector shows mass, charge, spin, energy, momentum, kinetic energy, gamma, beta, de Broglie wavelength, and photon helicity. The annihilation panel shows energy and momentum before and after the event, √s, photon opening angle, center-of-momentum scattering angle, and conservation residuals.
 
-- Speed of light: `c = 1`
-- Electron mass: `m = 1`
-- Photon mass: `0`
+## Model and limits
 
-The model treats electrons and positrons as localized packets on an electron field panel. Positrons carry the same mass and opposite charge. Electron-positron annihilation triggers when packets overlap within the configured threshold and produces two photon packets.
+Simulation units use `c = 1`, electron mass `m = 1`, and photon mass `0`. Electrons and positrons are localized packets with equal mass and opposite charge. Overlap within the configured threshold triggers annihilation into two photons.
 
-The default annihilation path builds the photon pair in the center-of-momentum frame, then boosts it into the lab frame. A simplified collinear mode is also available in settings.
+The default path creates the photons in the center-of-momentum frame, then boosts them to the lab frame. Settings also offers a simplified collinear mode.
 
-## Limits
+Field panels are drawings, not literal spacetime. Packet coordinates are drawing coordinates, not full relativistic position observables. Motion is deterministic and simplified for inspection.
 
-- Field panels are visual surfaces, not literal spacetime.
-- Packet coordinates are drawing coordinates for localized packets, not full relativistic position observables.
-- Motion is deterministic and simplified for inspection.
-- The app does not model gauge-field interactions, full spinor formalism, pair production, many-body fermion statistics, scattering channels, polarization dynamics, or higher-order QED processes.
+The app does not model gauge-field interactions, full spinor formalism, pair production, many-body fermion statistics, scattering channels, polarization dynamics, or higher-order QED processes. See the [math audit](docs/math-accuracy-audit-2026-04-15.md).
 
-See [docs/math-accuracy-audit-2026-04-15.md](docs/math-accuracy-audit-2026-04-15.md) for the math audit and upgrade notes.
-
-## Project structure
-
-```text
-src/
-  App.tsx                    App shell, controls, overlays, and about page
-  components/FieldStage.tsx  Canvas stage wrapper and pointer handling surface
-  content/                   Explainer and preset copy
-  rendering/                 Canvas drawing logic
-  simulation/                Constants, presets, physics, and update engine
-  types/                     Particle and simulation types
-  utils/                     Vector math, formatting, and stats helpers
-tests/                       Vitest coverage for math, rendering, presets, and stats
-public/                      Static metadata, icon, social card, sitemap, and headers
-docs/                        Model notes and accuracy audit
-```
-
-## Requirements
-
-- Bun `>= 1.3.0`
-- Node `>= 22.12.0`, used by Vite and TypeScript tooling
-
-## Quality checks
+## Develop and deploy
 
 ```bash
 bun run check
 ```
 
-That script runs:
-
-```bash
-bun run lint
-bun run typecheck
-bun run test
-bun run build
-```
-
-## Preview production build
+This runs lint, type checks, Vitest, and the production build. To preview:
 
 ```bash
 bun run build
 bun run preview
 ```
 
-## Static deployment
+For Cloudflare Pages or another static host, build with `bun run build` and publish `dist`.
 
-For Cloudflare Pages or another static host:
-
-- Build command: `bun run build`
-- Output directory: `dist`
-
-The app ships with `public/_headers`, `public/robots.txt`, `public/sitemap.xml`, `public/favicon.svg`, `public/og-card.png` (plus the `og-card.svg` source), and `public/site.webmanifest`.
+| Path | Contents |
+| --- | --- |
+| `src/App.tsx` | Controls, overlays, and about page |
+| `src/components/FieldStage.tsx` | Canvas stage and pointer handling |
+| `src/content/` | Explainers and preset copy |
+| `src/rendering/` | Canvas drawing |
+| `src/simulation/` | Constants, presets, physics, and update loop |
+| `src/types/`, `src/utils/` | Types, vector math, formatting, and statistics |
+| `tests/` | Math, rendering, preset, and statistics tests |
+| `public/` | Headers, metadata, icons, social card, sitemap, and manifest |
+| `docs/` | Model notes and accuracy audit |
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+[MIT](LICENSE).
