@@ -24,7 +24,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "bun --check",
+    "typecheck": "node scripts/bun-check.mjs",
     "typecheck:tsc": "tsc --noEmit",
     "check": "bun run lint && bun run typecheck && bun run test && bun run build"
   },
