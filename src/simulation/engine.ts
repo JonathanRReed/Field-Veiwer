@@ -37,7 +37,6 @@ type SpawnedPair = {
   spawnPosition: Vec2
 }
 
-const WRAP_SHIFTS = [-1, 0, 1] as const
 const EPSILON = 1e-10
 
 // Positions live on the unit torus; every write goes through this wrap.
@@ -86,12 +85,7 @@ export const initialState = (): SimulationState => ({
   lastAnnihilation: null
 })
 
-export const stepExcitation = (excitation: Excitation, dt: number): Excitation => {
-  if (!excitation.alive) {
-    return excitation
-  }
-
-  const displacement = computeDisplacement(excitation, dt)
+const advanceBy = (excitation: Excitation, displacement: Vec2, dt: number): Excitation => {
   const nextPosition = {
     x: wrap01(excitation.position.x + displacement.x),
     y: wrap01(excitation.position.y + displacement.y)
@@ -105,6 +99,9 @@ export const stepExcitation = (excitation: Excitation, dt: number): Excitation =
     phase: nextPhase
   }
 }
+
+export const stepExcitation = (excitation: Excitation, dt: number): Excitation =>
+  excitation.alive ? advanceBy(excitation, computeDisplacement(excitation, dt), dt) : excitation
 
 const areOppositeSpecies = (a: Excitation, b: Excitation): boolean => {
   return (
@@ -226,97 +223,49 @@ const createPhotonFromPair = (
   }
 }
 
+// Shortest signed distance between two coordinates on the unit circle.
+const wrappedDelta = (value: number): number => value - Math.round(value)
+
+/**
+ * Closest approach of two packets over one step. Each moves in a straight
+ * line by its unwrapped displacement, so the relative path is a segment. A
+ * step is far shorter than half the torus, so the nearest periodic image of
+ * the starting offset is the only one that can matter.
+ */
 const detectCrossing = (
   firstStart: Vec2,
-  firstEnd: Vec2,
+  firstDisplacement: Vec2,
   secondStart: Vec2,
-  secondEnd: Vec2,
+  secondDisplacement: Vec2,
   annihilationDistance: number
 ): { time: number; spawnPosition: Vec2 } | null => {
-  const thresholdSq = annihilationDistance * annihilationDistance
-  const best = {
-    distanceSq: Number.POSITIVE_INFINITY,
-    time: 0,
-    spawnPosition: { x: 0, y: 0 }
+  const offset = {
+    x: wrappedDelta(firstStart.x - secondStart.x),
+    y: wrappedDelta(firstStart.y - secondStart.y)
+  }
+  const closing = {
+    x: firstDisplacement.x - secondDisplacement.x,
+    y: firstDisplacement.y - secondDisplacement.y
+  }
+  const closingSq = closing.x * closing.x + closing.y * closing.y
+  const time =
+    closingSq > EPSILON ? clamp(-(offset.x * closing.x + offset.y * closing.y) / closingSq, 0, 1) : 0
+
+  const gap = {
+    x: offset.x + closing.x * time,
+    y: offset.y + closing.y * time
+  }
+  if (gap.x * gap.x + gap.y * gap.y > annihilationDistance * annihilationDistance) {
+    return null
   }
 
-  for (const firstShiftX of WRAP_SHIFTS) {
-    for (const firstShiftY of WRAP_SHIFTS) {
-      for (const secondShiftX of WRAP_SHIFTS) {
-        for (const secondShiftY of WRAP_SHIFTS) {
-          const a0 = {
-            x: firstStart.x + firstShiftX,
-            y: firstStart.y + firstShiftY
-          }
-          const a1 = {
-            x: firstEnd.x + firstShiftX,
-            y: firstEnd.y + firstShiftY
-          }
-          const b0 = {
-            x: secondStart.x + secondShiftX,
-            y: secondStart.y + secondShiftY
-          }
-          const b1 = {
-            x: secondEnd.x + secondShiftX,
-            y: secondEnd.y + secondShiftY
-          }
-
-          const rel0 = {
-            x: a0.x - b0.x,
-            y: a0.y - b0.y
-          }
-
-          const rel1 = {
-            x: a1.x - b1.x,
-            y: a1.y - b1.y
-          }
-
-          const relDelta = {
-            x: rel1.x - rel0.x,
-            y: rel1.y - rel0.y
-          }
-
-          const relDeltaSq = relDelta.x * relDelta.x + relDelta.y * relDelta.y
-          let time = 0
-
-          if (relDeltaSq > EPSILON) {
-            time = -(rel0.x * relDelta.x + rel0.y * relDelta.y) / relDeltaSq
-          }
-
-          time = clamp(time, 0, 1)
-
-          const relative = {
-            x: rel0.x + relDelta.x * time,
-            y: rel0.y + relDelta.y * time
-          }
-
-          const distanceSq = relative.x * relative.x + relative.y * relative.y
-
-          if (distanceSq < best.distanceSq) {
-            best.distanceSq = distanceSq
-            best.time = time
-
-            best.spawnPosition = {
-              x: (a0.x + (a1.x - a0.x) * time + b0.x + (b1.x - b0.x) * time) / 2,
-              y: (a0.y + (a1.y - a0.y) * time + b0.y + (b1.y - b0.y) * time) / 2
-            }
-          }
-        }
-      }
+  return {
+    time,
+    spawnPosition: {
+      x: wrap01(firstStart.x + firstDisplacement.x * time - gap.x / 2),
+      y: wrap01(firstStart.y + firstDisplacement.y * time - gap.y / 2)
     }
   }
-
-  if (best.distanceSq <= thresholdSq) {
-    return {
-      time: best.time,
-      spawnPosition: {
-        x: wrap01(best.spawnPosition.x),
-        y: wrap01(best.spawnPosition.y)
-      }
-    }
-  }
-
-  return null
 }
 
 export const stepSimulation = (
@@ -338,12 +287,18 @@ export const stepSimulation = (
       options.annihilationScatteringAngle ?? DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE
   }
   const safeDt = Math.max(0, dt)
-  const moved = state.excitations.map((excitation) => stepExcitation(excitation, safeDt))
+  const displacements = state.excitations.map((excitation) =>
+    excitation.alive ? computeDisplacement(excitation, safeDt) : { x: 0, y: 0 }
+  )
+  const moved = state.excitations.map((excitation, index) =>
+    excitation.alive ? advanceBy(excitation, displacements[index], safeDt) : excitation
+  )
 
   const electronCandidates = state.excitations
     .map((excitation, index) => ({
       start: excitation,
-      moved: moved[index]
+      moved: moved[index],
+      displacement: displacements[index]
     }))
     .filter(({ start }) => start.field === 'electron' && start.alive)
 
@@ -365,9 +320,9 @@ export const stepSimulation = (
 
       const collision = detectCrossing(
         first.start.position,
-        first.moved.position,
+        first.displacement,
         second.start.position,
-        second.moved.position,
+        second.displacement,
         resolvedOptions.annihilationDistance
       )
 
@@ -407,7 +362,8 @@ export const stepSimulation = (
 
     idsToRemove.add(pair.electron.id)
     idsToRemove.add(pair.antiparticle.id)
-    spawnedPhotons.push(...spawn.photons)
+    const timeLeftInStep = safeDt * (1 - pair.time)
+    spawnedPhotons.push(...spawn.photons.map((photon) => stepExcitation(photon, timeLeftInStep)))
     nextId += 2
 
     if (!summary) {
