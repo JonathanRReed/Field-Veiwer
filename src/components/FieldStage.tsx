@@ -48,7 +48,7 @@ export const FieldStage = ({ loop, interactive = true, counts }: FieldStageProps
           loop.onPointerUp(e.clientX, e.clientY)
         },
         onPointerLeave: () => loop.onPointerLeave(),
-        onPointerCancel: () => loop.onPointerLeave()
+        onPointerCancel: () => loop.onPointerCancel()
       }
     : {}
 

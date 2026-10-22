@@ -19,8 +19,8 @@ const uniformity = (): PresetStateMeta => {
       charge: electronDefaults.charge,
       spinLabel: electronDefaults.spinLabel,
       mass: electronDefaults.mass,
-      position: { x: 0.2, y: 0.22 },
-      momentum: { x: 0.45, y: 0.06 },
+      position: { x: 0.2, y: 0.78 },
+      momentum: { x: 0.45, y: -0.06 },
       amplitude: 1,
       phase: 0
     }),
@@ -31,8 +31,8 @@ const uniformity = (): PresetStateMeta => {
       charge: electronDefaults.charge,
       spinLabel: electronDefaults.spinLabel,
       mass: electronDefaults.mass,
-      position: { x: 0.47, y: 0.44 },
-      momentum: { x: -0.35, y: 0.02 },
+      position: { x: 0.47, y: 0.56 },
+      momentum: { x: -0.35, y: -0.02 },
       amplitude: 1,
       phase: 1
     }),
@@ -43,8 +43,8 @@ const uniformity = (): PresetStateMeta => {
       charge: electronDefaults.charge,
       spinLabel: electronDefaults.spinLabel,
       mass: electronDefaults.mass,
-      position: { x: 0.71, y: 0.27 },
-      momentum: { x: 0.19, y: -0.33 },
+      position: { x: 0.71, y: 0.73 },
+      momentum: { x: 0.19, y: 0.33 },
       amplitude: 1,
       phase: 2
     }),
@@ -55,8 +55,8 @@ const uniformity = (): PresetStateMeta => {
       charge: electronDefaults.charge,
       spinLabel: electronDefaults.spinLabel,
       mass: electronDefaults.mass,
-      position: { x: 0.33, y: 0.66 },
-      momentum: { x: -0.12, y: -0.21 },
+      position: { x: 0.33, y: 0.34 },
+      momentum: { x: -0.12, y: 0.21 },
       amplitude: 1,
       phase: 3
     }),
@@ -67,8 +67,8 @@ const uniformity = (): PresetStateMeta => {
       charge: electronDefaults.charge,
       spinLabel: electronDefaults.spinLabel,
       mass: electronDefaults.mass,
-      position: { x: 0.85, y: 0.74 },
-      momentum: { x: 0.08, y: 0.27 },
+      position: { x: 0.85, y: 0.26 },
+      momentum: { x: 0.08, y: -0.27 },
       amplitude: 1,
       phase: 4
     })
@@ -96,7 +96,7 @@ const mirror = (): PresetStateMeta => {
       charge: electronDefaults.charge,
       spinLabel: electronDefaults.spinLabel,
       mass: electronDefaults.mass,
-      position: { x: 0.33, y: 0.48 },
+      position: { x: 0.33, y: 0.52 },
       momentum: { x: 0.32, y: 0 },
       phase: 0
     }),
@@ -107,7 +107,7 @@ const mirror = (): PresetStateMeta => {
       charge: positronDefaults.charge,
       spinLabel: positronDefaults.spinLabel,
       mass: positronDefaults.mass,
-      position: { x: 0.66, y: 0.48 },
+      position: { x: 0.66, y: 0.52 },
       momentum: { x: -0.32, y: 0 },
       phase: 0
     })
@@ -127,8 +127,8 @@ const mirror = (): PresetStateMeta => {
 }
 
 const annihilation = (): PresetStateMeta => {
-  const eMomentum = { x: 0.7, y: 0.13 }
-  const pMomentum = { x: -0.7, y: -0.13 }
+  const eMomentum = { x: 0.7, y: -0.13 }
+  const pMomentum = { x: -0.7, y: 0.13 }
 
   const excitations = [
     makeExcitation({
@@ -138,7 +138,7 @@ const annihilation = (): PresetStateMeta => {
       charge: electronDefaults.charge,
       spinLabel: electronDefaults.spinLabel,
       mass: electronDefaults.mass,
-      position: { x: 0.28, y: 0.46 },
+      position: { x: 0.28, y: 0.54 },
       momentum: eMomentum,
       phase: 0
     }),
@@ -149,7 +149,7 @@ const annihilation = (): PresetStateMeta => {
       charge: positronDefaults.charge,
       spinLabel: positronDefaults.spinLabel,
       mass: positronDefaults.mass,
-      position: { x: 0.72, y: 0.54 },
+      position: { x: 0.72, y: 0.46 },
       momentum: pMomentum,
       phase: 0
     })

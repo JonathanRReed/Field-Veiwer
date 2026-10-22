@@ -70,10 +70,11 @@ const MIN_ROWS = 20
 const GAUSS_CUTOFF_SIGMAS = 3.2
 const MAX_DPR = 2
 
-// SLAB_TOP_INSET must stay close to HEIGHT_SCALE_FRAC so a full-amplitude
-// bump on the back rows cannot project past the top of the canvas.
+// Heights shrink with depth like widths do, so a full-amplitude bump on the
+// back row reaches about BACK_SHRINK * HEIGHT_SCALE_FRAC above the back edge.
+// SLAB_TOP_INSET must stay close to that or the bump projects past the canvas top.
 const BACK_SHRINK = 0.62 // back edge is this fraction of the front edge width
-const SLAB_TOP_INSET = 0.16
+const SLAB_TOP_INSET = 0.19
 const SLAB_BOTTOM_INSET = 0.08
 const HEIGHT_SCALE_FRAC = 0.31
 const STAGE_HALF_SPAN = 0.46
@@ -120,14 +121,21 @@ const rowY = (slab: Slab, sy: number): number => {
   const back = rowBackY(slab)
   return back + (rowFrontY(slab) - back) * sy
 }
-/** Half the drawn width of the plane at depth sy (the back edge is narrower). */
-const rowHalfWidth = (width: number, sy: number): number =>
-  width * STAGE_HALF_SPAN * (BACK_SHRINK + (1 - BACK_SHRINK) * sy)
+/** Perspective scale at a depth: 1 at the front edge, BACK_SHRINK at the back edge. */
+const depthScale = (depth: number): number => BACK_SHRINK + (1 - BACK_SHRINK) * depth
+/** Half the drawn width of the plane at a depth (the back edge is narrower). */
+const rowHalfWidth = (width: number, depth: number): number => width * STAGE_HALF_SPAN * depthScale(depth)
 
-const project = (sx: number, sy: number, z: number, slab: Slab, width: number): Vec2 => ({
-  x: width * 0.5 + (sx - 0.5) * 2 * rowHalfWidth(width, sy),
-  y: rowY(slab, sy) - z * slab.height * HEIGHT_SCALE_FRAC
-})
+// Field +y points away from the viewer, so a momentum angle reads the way it
+// does on a plot: 90° runs toward the back of the slab. `depth` is 0 at the
+// back edge and 1 at the front edge.
+const project = (sx: number, sy: number, z: number, slab: Slab, width: number): Vec2 => {
+  const depth = 1 - sy
+  return {
+    x: width * 0.5 + (sx - 0.5) * 2 * rowHalfWidth(width, depth),
+    y: rowY(slab, depth) - z * slab.height * HEIGHT_SCALE_FRAC * depthScale(depth)
+  }
+}
 
 export const buildStageLayout = (width: number, height: number): StageLayout => {
   const gutter = Math.max(18, height * 0.02)
@@ -147,12 +155,12 @@ export const unproject = (px: number, py: number, slab: Slab, width: number): Ve
   const back = rowBackY(slab)
   const front = rowFrontY(slab)
   if (front === back) return null
-  const sy = (py - back) / (front - back)
-  if (!Number.isFinite(sy)) return null
-  const halfWidth = rowHalfWidth(width, sy)
+  const depth = (py - back) / (front - back)
+  if (!Number.isFinite(depth)) return null
+  const halfWidth = rowHalfWidth(width, depth)
   if (halfWidth <= 0) return null
   const sx = (px - width * 0.5) / (2 * halfWidth) + 0.5
-  return { x: clamp(sx, 0, 1), y: clamp(sy, 0, 1) }
+  return { x: clamp(sx, 0, 1), y: clamp(1 - depth, 0, 1) }
 }
 
 /** The slab containing pixel row py, or null in the gutter between them. */
@@ -492,9 +500,11 @@ const drawMesh = (
   const heightPx = slab.height * HEIGHT_SCALE_FRAC
 
   for (let r = 0; r <= rows; r += 1) {
-    const sy = r / rows
-    const baseY = rowY(slab, sy)
-    const span = 2 * rowHalfWidth(width, sy)
+    const depth = r / rows
+    const sy = 1 - depth
+    const baseY = rowY(slab, depth)
+    const span = 2 * rowHalfWidth(width, depth)
+    const rowHeightPx = heightPx * depthScale(depth)
     const rowWave = shimmer.rowWave[r]
     const rowSin = shimmer.rowSin[r]
     const rowCos = shimmer.rowCos[r]
@@ -506,7 +516,7 @@ const drawMesh = (
       const z = ripple + bumpHeight(sx, sy, slab.key, bumpList)
       const i = r * stride + c
       gridX[i] = width * 0.5 + (sx - 0.5) * span
-      gridY[i] = baseY - z * heightPx
+      gridY[i] = baseY - z * rowHeightPx
     }
   }
 

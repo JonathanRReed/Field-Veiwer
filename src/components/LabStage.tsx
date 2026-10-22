@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { GameLoop, Tool } from '../engine/gameLoop'
 import { useLoopState } from '../hooks/useGameLoop'
 import { EventCard } from './EventCard'
@@ -19,6 +20,9 @@ interface LabStageProps {
 
 export const LabStage = ({ loop, tool, showIntro, onFirstInteraction }: LabStageProps) => {
   const { selected, lastAnnihilation, aliveElectronCount, alivePhotonCount } = useLoopState(loop)
+  const [closedEventId, setClosedEventId] = useState<string | null>(null)
+  // Event ids repeat when a preset replays, so forget the dismissal once the event is gone.
+  if (!lastAnnihilation && closedEventId !== null) setClosedEventId(null)
   const target = tool === 'select' ? null : TARGET_HINTS[tool]
 
   return (
@@ -31,7 +35,9 @@ export const LabStage = ({ loop, tool, showIntro, onFirstInteraction }: LabStage
           onMomentumChange={(id, momentum) => loop.updateSelectedMomentum(id, momentum)}
         />
       ) : null}
-      {lastAnnihilation ? <EventCard summary={lastAnnihilation} /> : null}
+      {lastAnnihilation && lastAnnihilation.eventId !== closedEventId ? (
+        <EventCard summary={lastAnnihilation} onClose={() => setClosedEventId(lastAnnihilation.eventId)} />
+      ) : null}
 
       {target ? (
         <p className={`hint hint--${tool} hint--on-${target.slab}`} aria-hidden="true">

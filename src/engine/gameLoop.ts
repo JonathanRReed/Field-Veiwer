@@ -86,6 +86,8 @@ export class GameLoop {
 
   private preview: DragPreview | null = null
   private dragId: string | null = null
+  // Where inside the packet the pointer grabbed it, so it does not jump to the cursor.
+  private dragOffset: Vec2 = { x: 0, y: 0 }
   private hoverPanel: SlabKey | null = null
   private selectedId: string | null = null
 
@@ -463,6 +465,13 @@ export class GameLoop {
     if (hit.hitId) {
       this.selectedId = hit.hitId
       this.dragId = hit.hitId
+      const grabbed = this.state.excitations.find((e) => e.id === hit.hitId)
+      this.dragOffset = grabbed
+        ? {
+            x: minSignedWrapOffset(grabbed.position.x - hit.world.x),
+            y: minSignedWrapOffset(grabbed.position.y - hit.world.y)
+          }
+        : { x: 0, y: 0 }
       this.preview = null
       this.setState(selectExcitation(this.state, hit.hitId))
       this.emitState(true)
@@ -488,7 +497,12 @@ export class GameLoop {
     if (!hit) return
 
     if (this.dragId) {
-      this.setState(moveExcitation(this.state, this.dragId, hit.world))
+      this.setState(
+        moveExcitation(this.state, this.dragId, {
+          x: hit.world.x + this.dragOffset.x,
+          y: hit.world.y + this.dragOffset.y
+        })
+      )
       this.emitState(true)
     } else if (this.preview && hit.panel === this.preview.panel) {
       this.preview = { ...this.preview, end: hit.world }
@@ -517,6 +531,14 @@ export class GameLoop {
     )
     this.preview = null
     this.emitState(true)
+  }
+
+  /** The browser took the pointer away mid-gesture (a system swipe, a call). Drop the gesture. */
+  onPointerCancel() {
+    this.preview = null
+    this.dragId = null
+    this.onPointerLeave()
+    this.dirty = true
   }
 
   onPointerLeave() {

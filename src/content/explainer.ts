@@ -66,6 +66,7 @@ export const limitations: string[] = [
   'Photon polarization is not modeled.',
   'No scattering, pair production, or higher-order processes.',
   'Space is a flat square that wraps at its edges, and positions are drawing coordinates.',
+  'Packet widths and photon ripple spacing are chosen to read clearly. The wavelength in the readout is not drawn to scale.',
   'No field equation is solved. Motion is deterministic, and the picture is an analogy.'
 ]
 

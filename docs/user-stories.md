@@ -94,6 +94,19 @@ These are in `tests/adversarial.test.ts`.
 | The About page did not say what the conservation checks prove. | It says they test the bookkeeping, not the law. |
 | The limits list left out the photon direction, the annihilation rule, and polarization. | All three are listed. |
 
+### Second pass, fixed
+
+| Finding | Fix |
+| --- | --- |
+| Field +y pointed toward the viewer, so a drag up and to the right read as 311° and p_y was negative. | Field +y now points away from the viewer. The same drag reads 49°, and 90° runs up the slab. The presets were mirrored so they look the same. |
+| Heights ignored perspective, so a packet at the back edge poked out of the canvas and its marker went off screen. | Heights shrink with depth like widths do, and the back inset grew from 0.16 to 0.19. |
+| A dragged packet jumped so its center sat under the cursor. | It keeps the offset where you grabbed it. |
+| A cancelled touch left a half-drawn launch preview. | Cancel now drops the gesture. |
+| The speed and scattering angle sliders had no accessible name, because the label's first labelable child was the output. | Both have an aria-label. |
+| The event card could not be closed and covered the photon slab. | It has a close button and returns on the next event. |
+| The event card angle labels were ambiguous. | They read "angle between photons, lab" and "θ*, photon from incoming line, rest frame". |
+| The limits list did not say the readout wavelength is not drawn to scale. | It does now. |
+
 ### Known limits, not changed
 
 - The default Annihilation preset is symmetric, so its total momentum is zero and the photons leave at exactly 180°. The Mirror pair preset and your own launches show boosted cases.

@@ -47,6 +47,12 @@ export const ClearIcon = () => (
   </Glyph>
 )
 
+export const CloseIcon = () => (
+  <Glyph>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </Glyph>
+)
+
 export const SlidersIcon = () => (
   <Glyph>
     <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />

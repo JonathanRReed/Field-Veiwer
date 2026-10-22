@@ -101,6 +101,7 @@ export const Dock = memo(
           </span>
           <input
             type="range"
+            aria-label="Playback speed"
             min={0.1}
             max={2}
             step={0.1}

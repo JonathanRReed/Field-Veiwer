@@ -46,6 +46,7 @@ export const SettingsPanel = ({ mode, onMode, angle, onAngle, onClose }: Setting
           </span>
           <input
             type="range"
+            aria-label="Scattering angle"
             min={0}
             max={180}
             step={5}

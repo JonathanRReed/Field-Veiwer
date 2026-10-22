@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import type { AnnihilationSummary } from '../types/particle'
 import { formatNumber, formatSignedVec } from '../utils/format'
+import { CloseIcon } from './icons'
 
 const toDegrees = (radians: number): number => (radians * 180) / Math.PI
 
@@ -13,7 +14,7 @@ const Check = ({ ok, pass, fail }: { ok: boolean; pass: string; fail: string }) 
   </li>
 )
 
-export const EventCard = memo(({ summary }: { summary: AnnihilationSummary }) => {
+export const EventCard = memo(({ summary, onClose }: { summary: AnnihilationSummary; onClose: () => void }) => {
   const { checks, scattering } = summary
   const residual = checks
     ? Math.max(checks.energyResidualMagnitude, checks.momentumResidualMagnitude)
@@ -28,6 +29,9 @@ export const EventCard = memo(({ summary }: { summary: AnnihilationSummary }) =>
         <span className="card-aside">
           <i>t</i> = {formatNumber(summary.time, 3)}
         </span>
+        <button type="button" className="card-close" aria-label="Close event summary" onClick={onClose}>
+          <CloseIcon />
+        </button>
       </header>
 
       <p className="card-summary">
@@ -72,12 +76,12 @@ export const EventCard = memo(({ summary }: { summary: AnnihilationSummary }) =>
         {scattering ? (
           <>
             <div>
-              <dt>photon angle, lab</dt>
+              <dt>angle between photons, lab</dt>
               <dd>{formatNumber(toDegrees(scattering.photonOpeningAngleLab), 1)}°</dd>
             </div>
             <div>
               <dt>
-                <i>θ*</i>, rest frame
+                <i>θ*</i>, photon from incoming line, rest frame
               </dt>
               <dd>{formatNumber(toDegrees(scattering.scatteringAngleCm), 1)}°</dd>
             </div>
