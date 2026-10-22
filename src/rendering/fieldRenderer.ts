@@ -1,29 +1,22 @@
 import type { DragPreview, Excitation, Vec2 } from '../types/particle'
-import { magnitude } from '../utils/vector'
+import { clamp, magnitude } from '../utils/vector'
 
-// ---------------------------------------------------------------------------
-// Veritasium-style 3D wireframe quantum field renderer.
+// Each field is a tilted wireframe plane. The height at a point is the sum of
+// the packets living on that field:
 //
-// Each "field" is drawn as a tilted wireframe plane whose height at every
-// point z(x, y, t) is the sum of contributions from all alive excitations
-// living on that field:
+//   electron (charge < 0)  Gaussian bump, Lorentz-contracted along its motion
+//   positron (charge > 0)  the same shape as a dip
+//   photon                 cosine carrier under a Gaussian envelope
 //
-//   electron (charge < 0)  -> Gaussian bump (positive height)
-//   positron (charge > 0)  -> Gaussian dip  (negative height)
-//   photon                 -> transverse wavepacket travelling along p
-//
-// The stage is split into horizontal slabs (one slab per field). Each slab
-// projects a regular (sx, sy) grid through a simple pseudo-3D transform and
-// connects the projected samples with thin glowing wire lines, back-to-front.
-// ---------------------------------------------------------------------------
+// Two slabs are stacked vertically. Each projects a regular (sx, sy) grid
+// through a pseudo-3D trapezoid and draws it back to front, covering each
+// band before stroking its front contour so hills hide what lies behind them.
 
 export type SlabKey = 'electron' | 'photon'
 
 export interface Slab {
   key: SlabKey
-  label: string
   accent: string
-  accentSoft: string
   accentGlow: string
   /** top of slab in canvas pixels */
   top: number
@@ -35,22 +28,6 @@ export interface StageLayout {
   width: number
   height: number
   slabs: Record<SlabKey, Slab>
-}
-
-export interface RenderStageInput {
-  canvas: HTMLCanvasElement
-  layout: StageLayout
-  excitations: Excitation[]
-  time: number
-  renderTime: number
-  selectedId: string | null
-  preview: DragPreview | null
-  shockwave: ShockwaveEffect | null
-  showTraces: boolean
-  traces: Map<string, Vec2[]>
-  hoverPanel: SlabKey | null
-  /** Used for selection hit-testing and to expose projected particle positions upward. */
-  projectedParticles?: ProjectedParticle[]
 }
 
 export interface ShockwaveEffect {
@@ -68,67 +45,59 @@ export interface ProjectedParticle {
   radius: number
 }
 
-// Grid sample resolution, higher = smoother and heavier.
+export interface RenderStageInput {
+  canvas: HTMLCanvasElement
+  layout: StageLayout
+  excitations: Excitation[]
+  time: number
+  selectedId: string | null
+  preview: DragPreview | null
+  shockwave: ShockwaveEffect | null
+  showTraces: boolean
+  traces: Map<string, Vec2[]>
+  hoverPanel: SlabKey | null
+  /** Filled with screen positions so pointer hit-testing matches what is drawn. */
+  projectedParticles: ProjectedParticle[]
+}
+
 const MAX_COLS = 56
 const MAX_ROWS = 28
 const MID_COLS = 48
 const MID_ROWS = 24
 const MIN_COLS = 40
 const MIN_ROWS = 20
-// Beyond this many sigma the Gaussian contribution is negligible; skip it.
+// Beyond this many sigma a Gaussian contributes nothing visible.
 const GAUSS_CUTOFF_SIGMAS = 3.2
-// Cap devicePixelRatio to keep the stage light on retina displays.
-const MAX_DPR = 1.5
+const MAX_DPR = 2
 
-// Stage projection tunables. SLAB_TOP_INSET must stay close to
-// HEIGHT_SCALE_FRAC so a full-amplitude bump on the back rows cannot project
-// past the top of the canvas and clip its packet marker.
-const BACK_SHRINK = 0.62 // back edge is this fraction of front edge width
-const SLAB_TOP_INSET = 0.16 // fraction of slab reserved above the back edge
+// SLAB_TOP_INSET must stay close to HEIGHT_SCALE_FRAC so a full-amplitude
+// bump on the back rows cannot project past the top of the canvas.
+const BACK_SHRINK = 0.62 // back edge is this fraction of the front edge width
+const SLAB_TOP_INSET = 0.16
 const SLAB_BOTTOM_INSET = 0.08
-const HEIGHT_SCALE_FRAC = 0.31 // fraction of slab height the max z bump covers
+const HEIGHT_SCALE_FRAC = 0.31
+const STAGE_HALF_SPAN = 0.46
 
-// Gaussian widths and amplitudes of each field species in world (sx, sy) units.
 const ELECTRON_SIGMA = 0.062
 const ELECTRON_AMP = 0.9
 const PHOTON_SIGMA = 0.11
 const PHOTON_AMP = 0.55
-// Base carrier wavenumber for photon packets. The drawn wavelength shrinks
-// with |p| within clamped bounds (lambda = 2*pi/|p|), and the carrier phase
-// is fixed in the packet frame: for massless waves phase velocity equals
-// group velocity, so crests must not drift through the envelope.
+// Drawn carrier wavenumber for photons. The true wavelength 2π/|p| does not
+// fit on the stage, so the carrier tightens monotonically with |p| inside
+// clamped bounds. Massless phase velocity equals group velocity, so the
+// carrier phase is fixed in the packet frame and crests never drift.
 const PHOTON_K = 30
 
-/** Linear clamp helper */
-const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v))
-
-const meshBuffers = new Map<string, { x: Float32Array; y: Float32Array }>()
-const alphaStyleCache = new Map<string, string>()
-const contextCache = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>()
-
-// Offscreen glow sprite cache: one 64×64 radial-gradient texture per color.
-// Drawn with globalAlpha to vary intensity.
-const glowSpriteCache = new Map<string, HTMLCanvasElement>()
-const GLOW_SPRITE_SIZE = 64
-
-const getGlowSprite = (color: string): HTMLCanvasElement => {
-  const cached = glowSpriteCache.get(color)
-  if (cached) return cached
-  const canvas = document.createElement('canvas')
-  canvas.width = GLOW_SPRITE_SIZE
-  canvas.height = GLOW_SPRITE_SIZE
-  const ctx = canvas.getContext('2d')!
-  const cx = GLOW_SPRITE_SIZE / 2
-  const r = GLOW_SPRITE_SIZE / 2
-  const g = ctx.createRadialGradient(cx, cx, 0, cx, cx, r)
-  g.addColorStop(0, color)
-  g.addColorStop(0.4, color)
-  g.addColorStop(1, 'rgba(0,0,0,0)')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, GLOW_SPRITE_SIZE, GLOW_SPRITE_SIZE)
-  glowSpriteCache.set(color, canvas)
-  return canvas
+const SLAB_STYLE: Record<SlabKey, Pick<Slab, 'accent' | 'accentGlow'>> = {
+  electron: { accent: '#8cf0d4', accentGlow: 'rgba(140, 240, 212, 0.14)' },
+  photon: { accent: '#f5c77a', accentGlow: 'rgba(245, 199, 122, 0.12)' }
 }
+
+const PARTICLE_COLOR = {
+  electron: '#8cf0d4',
+  positron: '#ff7aa8',
+  photon: '#f5c77a'
+} as const
 
 export const getMeshResolution = (width: number): { cols: number; rows: number } => {
   if (width <= 520) return { cols: MIN_COLS, rows: MIN_ROWS }
@@ -136,387 +105,437 @@ export const getMeshResolution = (width: number): { cols: number; rows: number }
   return { cols: MAX_COLS, rows: MAX_ROWS }
 }
 
-const getMeshBuffers = (cols: number, rows: number): { x: Float32Array; y: Float32Array } => {
-  const key = `${cols}x${rows}`
-  const existing = meshBuffers.get(key)
-  if (existing) return existing
-  const size = (cols + 1) * (rows + 1)
-  const buffers = {
-    x: new Float32Array(size),
-    y: new Float32Array(size)
+export const particleColor = (e: Excitation): string => {
+  if (e.field === 'photon') return PARTICLE_COLOR.photon
+  return e.charge < 0 ? PARTICLE_COLOR.electron : PARTICLE_COLOR.positron
+}
+
+// ---------------------------------------------------------------------------
+// Projection
+// ---------------------------------------------------------------------------
+
+const rowBackY = (slab: Slab): number => slab.top + slab.height * SLAB_TOP_INSET
+const rowFrontY = (slab: Slab): number => slab.top + slab.height * (1 - SLAB_BOTTOM_INSET)
+const rowY = (slab: Slab, sy: number): number => {
+  const back = rowBackY(slab)
+  return back + (rowFrontY(slab) - back) * sy
+}
+/** Half the drawn width of the plane at depth sy (the back edge is narrower). */
+const rowHalfWidth = (width: number, sy: number): number =>
+  width * STAGE_HALF_SPAN * (BACK_SHRINK + (1 - BACK_SHRINK) * sy)
+
+const project = (sx: number, sy: number, z: number, slab: Slab, width: number): Vec2 => ({
+  x: width * 0.5 + (sx - 0.5) * 2 * rowHalfWidth(width, sy),
+  y: rowY(slab, sy) - z * slab.height * HEIGHT_SCALE_FRAC
+})
+
+export const buildStageLayout = (width: number, height: number): StageLayout => {
+  const gutter = Math.max(18, height * 0.02)
+  const slabHeight = (height - gutter) / 2
+  return {
+    width,
+    height,
+    slabs: {
+      electron: { key: 'electron', ...SLAB_STYLE.electron, top: 0, height: slabHeight },
+      photon: { key: 'photon', ...SLAB_STYLE.photon, top: slabHeight + gutter, height: slabHeight }
+    }
   }
-  meshBuffers.set(key, buffers)
-  return buffers
 }
 
-const getCanvasContext = (canvas: HTMLCanvasElement): CanvasRenderingContext2D | null => {
-  const existing = contextCache.get(canvas)
-  if (existing) return existing
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
-  contextCache.set(canvas, ctx)
-  return ctx
+/** Invert the projection, ignoring height, so pointer coordinates become field coordinates. */
+export const unproject = (px: number, py: number, slab: Slab, width: number): Vec2 | null => {
+  const back = rowBackY(slab)
+  const front = rowFrontY(slab)
+  if (front === back) return null
+  const sy = (py - back) / (front - back)
+  if (!Number.isFinite(sy)) return null
+  const halfWidth = rowHalfWidth(width, sy)
+  if (halfWidth <= 0) return null
+  const sx = (px - width * 0.5) / (2 * halfWidth) + 0.5
+  return { x: clamp(sx, 0, 1), y: clamp(sy, 0, 1) }
 }
 
-/**
- * Precomputed, slab-scoped excitation parameters so the hot grid loop
- * avoids per-cell divisions, hypots, and trig setup.
- */
-type PrepedExcitation = {
-  id: string
-  field: SlabKey
+/** The slab containing pixel row py, or null in the gutter between them. */
+export const pickSlab = (py: number, layout: StageLayout): SlabKey | null => {
+  const { electron, photon } = layout.slabs
+  if (py >= electron.top && py <= electron.top + electron.height) return 'electron'
+  if (py >= photon.top && py <= photon.top + photon.height) return 'photon'
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Field height
+// ---------------------------------------------------------------------------
+
+interface Bump {
   px: number
   py: number
   invTwoSigmaSq: number
   cutoff2: number
-  // electron-specific
-  electronAmp: number
-  sign: number
-  // photon-specific
+  amplitude: number
   ux: number
   uy: number
+  /** (γ² - 1) for electrons: the envelope shrinks by γ along the motion. Zero for photons. */
+  stretchSq: number
   k: number
   carrierPhase: number
-  photonAmp: number
 }
 
-const prepareExcitations = (excitations: Excitation[], time: number): PrepedExcitation[] => {
-  const out: PrepedExcitation[] = []
-  for (let i = 0; i < excitations.length; i += 1) {
-    const e = excitations[i]
+type SlabBumps = Record<SlabKey, Bump[]>
+
+const prepareBumps = (excitations: Excitation[], time: number): SlabBumps => {
+  const bumps: SlabBumps = { electron: [], photon: [] }
+  for (const e of excitations) {
     if (!e.alive) continue
+    const mag = magnitude(e.momentum)
+    const ux = mag > 1e-6 ? e.momentum.x / mag : 1
+    const uy = mag > 1e-6 ? e.momentum.y / mag : 0
+
     if (e.field === 'electron') {
-      const sigma = ELECTRON_SIGMA
-      // The packet phase advances at omega = E (hbar = 1), so sin(phase)
-      // oscillates at the packet's own frequency and freezes when paused.
+      // The phase advances at ω = E, so the breathing oscillates at the
+      // packet's own frequency and freezes when paused.
       const breath = 1 + 0.06 * Math.sin(e.phase)
-      const amp =
+      const amplitude =
+        (e.charge < 0 ? 1 : -1) *
         ELECTRON_AMP *
         (0.78 + 0.22 * e.amplitude) *
-        (1 + 0.08 * magnitude(e.momentum)) *
+        (1 + 0.08 * mag) *
         breath
-      out.push({
-        id: e.id,
-        field: 'electron',
+      const momentumPerMass = mag / e.mass
+      bumps.electron.push({
         px: e.position.x,
         py: e.position.y,
-        invTwoSigmaSq: 1 / (2 * sigma * sigma),
-        cutoff2: (GAUSS_CUTOFF_SIGMAS * sigma) ** 2,
-        electronAmp: amp,
-        sign: e.charge < 0 ? 1 : -1,
-        ux: 0,
-        uy: 0,
-        k: 0,
-        carrierPhase: 0,
-        photonAmp: 0
-      })
-    } else {
-      const mag = magnitude(e.momentum)
-      let ux = 1
-      let uy = 0
-      if (mag > 1e-6) {
-        ux = e.momentum.x / mag
-        uy = e.momentum.y / mag
-      }
-      const sigma = PHOTON_SIGMA
-      const k = PHOTON_K * clamp(0.35 + 0.65 * mag, 0.35, 1.7)
-      // e.phase grows as E * t while the packet center advances at c = 1, so
-      // (e.phase - time * E) is constant and crests stay locked to the
-      // envelope, matching dispersion-free propagation.
-      const carrierPhase = e.phase - time * mag
-      out.push({
-        id: e.id,
-        field: 'photon',
-        px: e.position.x,
-        py: e.position.y,
-        invTwoSigmaSq: 1 / (2 * sigma * sigma),
-        cutoff2: (GAUSS_CUTOFF_SIGMAS * sigma) ** 2,
-        electronAmp: 0,
-        sign: 0,
+        invTwoSigmaSq: 1 / (2 * ELECTRON_SIGMA * ELECTRON_SIGMA),
+        cutoff2: (GAUSS_CUTOFF_SIGMAS * ELECTRON_SIGMA) ** 2,
+        amplitude,
         ux,
         uy,
-        k,
-        carrierPhase,
-        photonAmp: PHOTON_AMP * (0.7 + 0.3 * e.amplitude)
+        stretchSq: momentumPerMass * momentumPerMass,
+        k: 0,
+        carrierPhase: 0
+      })
+    } else {
+      bumps.photon.push({
+        px: e.position.x,
+        py: e.position.y,
+        invTwoSigmaSq: 1 / (2 * PHOTON_SIGMA * PHOTON_SIGMA),
+        cutoff2: (GAUSS_CUTOFF_SIGMAS * PHOTON_SIGMA) ** 2,
+        amplitude: PHOTON_AMP * (0.7 + 0.3 * e.amplitude),
+        ux,
+        uy,
+        stretchSq: 0,
+        k: PHOTON_K * clamp(0.35 + 0.65 * mag, 0.35, 1.7),
+        // phase grows as E·t while the packet advances at c = 1, so
+        // (phase - time·E) stays constant and crests lock to the envelope.
+        carrierPhase: e.phase - time * mag
       })
     }
   }
-  return out
+  return bumps
 }
 
-/**
- * Evaluate the field height at a world point for a prepped excitation list.
- * Inner loop is tight: early-out on cutoff and no trig/hypot per sample.
- */
-const evaluateFieldPrepped = (
-  sx: number,
-  sy: number,
-  slab: SlabKey,
-  preps: PrepedExcitation[],
-  time: number
-): number => {
-  // Ambient shimmer keeps the surface alive when empty.
-  let z =
-    0.0085 * Math.sin(sx * 11.2 + time * 0.55) * Math.cos(sy * 9.6 - time * 0.42) +
-    0.0055 * Math.sin((sx + sy) * 13.1 - time * 0.31)
-
-  for (let i = 0; i < preps.length; i += 1) {
-    const p = preps[i]
-    if (p.field !== slab) continue
-    let dx = sx - p.px
+const bumpHeight = (sx: number, sy: number, slab: SlabKey, bumps: Bump[]): number => {
+  let z = 0
+  for (let i = 0; i < bumps.length; i += 1) {
+    const b = bumps[i]
+    let dx = sx - b.px
     if (dx > 0.5) dx -= 1
     else if (dx < -0.5) dx += 1
-    let dy = sy - p.py
+    let dy = sy - b.py
     if (dy > 0.5) dy -= 1
     else if (dy < -0.5) dy += 1
     const r2 = dx * dx + dy * dy
-    if (r2 > p.cutoff2) continue
-    const envelope = Math.exp(-r2 * p.invTwoSigmaSq)
-    if (p.field === 'electron') {
-      z += p.sign * p.electronAmp * envelope
+    if (r2 > b.cutoff2) continue
+    const along = dx * b.ux + dy * b.uy
+    if (slab === 'electron') {
+      z += b.amplitude * Math.exp(-(r2 + along * along * b.stretchSq) * b.invTwoSigmaSq)
     } else {
-      const along = dx * p.ux + dy * p.uy
-      z += p.photonAmp * envelope * Math.cos(along * p.k + p.carrierPhase)
+      z += b.amplitude * Math.exp(-r2 * b.invTwoSigmaSq) * Math.cos(along * b.k + b.carrierPhase)
     }
   }
   return z
 }
 
-/**
- * Project a world point (sx, sy, z) into screen space within one slab.
- * Uses a parallel-projection trapezoid: back edge (sy=0) is narrower than
- * front edge (sy=1) for a Veritasium-style receding plane.
- */
-const project = (
-  sx: number,
-  sy: number,
-  z: number,
-  slab: Slab,
-  width: number
-): { x: number; y: number } => {
-  const slabTop = slab.top
-  const slabH = slab.height
-  const backY = slabTop + slabH * SLAB_TOP_INSET
-  const frontY = slabTop + slabH * (1 - SLAB_BOTTOM_INSET)
-  const baseY = backY + (frontY - backY) * sy
+// The ambient ripple is a sum of products of a function of sx and a function
+// of sy, so each grid line needs its trig evaluated once instead of every vertex.
+//   0.0085 sin(11.2 sx + 0.55 t) cos(9.6 sy - 0.42 t) + 0.0055 sin(13.1 (sx + sy) - 0.31 t)
+const SHIMMER_A = 0.0085
+const SHIMMER_B = 0.0055
 
-  // horizontal convergence toward the back
-  const convergence = BACK_SHRINK + (1 - BACK_SHRINK) * sy
-  const cx = width * 0.5
-  const halfSpan = width * 0.46
-  const px = cx + (sx - 0.5) * 2 * halfSpan * convergence
+const shimmerAt = (sx: number, sy: number, time: number): number =>
+  SHIMMER_A * Math.sin(sx * 11.2 + time * 0.55) * Math.cos(sy * 9.6 - time * 0.42) +
+  SHIMMER_B * Math.sin((sx + sy) * 13.1 - time * 0.31)
 
-  const heightPx = slabH * HEIGHT_SCALE_FRAC
-  const py = baseY - z * heightPx
-
-  return { x: px, y: py }
+interface ShimmerTable {
+  cols: number
+  rows: number
+  colWave: Float64Array
+  colSin: Float64Array
+  colCos: Float64Array
+  rowWave: Float64Array
+  rowSin: Float64Array
+  rowCos: Float64Array
 }
 
-/**
- * Build a slab definition keyed by field. Two slabs stacked vertically with
- * a thin gutter between them.
- */
-export const buildStageLayout = (width: number, height: number): StageLayout => {
-  const gutter = Math.max(18, height * 0.02)
-  const slabH = (height - gutter) / 2
-  return {
-    width,
-    height,
-    slabs: {
-      electron: {
-        key: 'electron',
-        label: 'electron field',
-        accent: '#8cf0d4',
-        accentSoft: 'rgba(140, 240, 212, 0.55)',
-        accentGlow: 'rgba(140, 240, 212, 0.14)',
-        top: 0,
-        height: slabH
-      },
-      photon: {
-        key: 'photon',
-        label: 'photon field',
-        accent: '#f5c77a',
-        accentSoft: 'rgba(245, 199, 122, 0.55)',
-        accentGlow: 'rgba(245, 199, 122, 0.12)',
-        top: slabH + gutter,
-        height: slabH
-      }
+let shimmerTable: ShimmerTable | null = null
+
+const fillShimmerTable = (cols: number, rows: number, time: number): ShimmerTable => {
+  if (!shimmerTable || shimmerTable.cols !== cols || shimmerTable.rows !== rows) {
+    shimmerTable = {
+      cols,
+      rows,
+      colWave: new Float64Array(cols + 1),
+      colSin: new Float64Array(cols + 1),
+      colCos: new Float64Array(cols + 1),
+      rowWave: new Float64Array(rows + 1),
+      rowSin: new Float64Array(rows + 1),
+      rowCos: new Float64Array(rows + 1)
     }
   }
-}
-
-/** Invert the projection (ignoring z) so pointer coords become world coords. */
-export const unproject = (
-  px: number,
-  py: number,
-  slab: Slab,
-  width: number
-): Vec2 | null => {
-  const slabTop = slab.top
-  const slabH = slab.height
-  const backY = slabTop + slabH * SLAB_TOP_INSET
-  const frontY = slabTop + slabH * (1 - SLAB_BOTTOM_INSET)
-  if (frontY === backY) return null
-  const sy = (py - backY) / (frontY - backY)
-  if (!Number.isFinite(sy)) return null
-  const convergence = BACK_SHRINK + (1 - BACK_SHRINK) * sy
-  if (convergence <= 0) return null
-  const cx = width * 0.5
-  const halfSpan = width * 0.46
-  const sx = (px - cx) / (2 * halfSpan * convergence) + 0.5
-  return { x: clamp(sx, 0, 1), y: clamp(sy, 0, 1) }
-}
-
-/** Return which slab a given pixel y lives inside, or null if in the gutter. */
-export const pickSlab = (py: number, layout: StageLayout): SlabKey | null => {
-  const e = layout.slabs.electron
-  const p = layout.slabs.photon
-  if (py >= e.top && py <= e.top + e.height) return 'electron'
-  if (py >= p.top && py <= p.top + p.height) return 'photon'
-  return null
-}
-
-// ---------------------------------------------------------------------------
-// Drawing helpers
-// ---------------------------------------------------------------------------
-
-const drawBackdrop = (
-  ctx: CanvasRenderingContext2D,
-  layout: StageLayout,
-  time: number
-): void => {
-  const { width, height } = layout
-  // Base deep-space gradient
-  const bg = ctx.createRadialGradient(
-    width * 0.5,
-    height * 0.58,
-    0,
-    width * 0.5,
-    height * 0.58,
-    Math.max(width, height) * 0.85
-  )
-  bg.addColorStop(0, '#08131b')
-  bg.addColorStop(0.55, '#050a11')
-  bg.addColorStop(1, '#02040a')
-  ctx.fillStyle = bg
-  ctx.fillRect(0, 0, width, height)
-
-  // Drifting teal/amber washes per slab so each field feels distinct.
-  for (const slab of [layout.slabs.electron, layout.slabs.photon]) {
-    const cx = width * (0.5 + 0.08 * Math.sin(time * 0.22 + (slab.key === 'electron' ? 0 : Math.PI)))
-    const cy = slab.top + slab.height * 0.58
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(width, slab.height) * 0.7)
-    g.addColorStop(0, slab.accentGlow)
-    g.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = g
-    ctx.fillRect(0, slab.top, width, slab.height)
+  const t = shimmerTable
+  for (let c = 0; c <= cols; c += 1) {
+    const sx = c / cols
+    t.colWave[c] = Math.sin(sx * 11.2 + time * 0.55)
+    t.colSin[c] = Math.sin(sx * 13.1)
+    t.colCos[c] = Math.cos(sx * 13.1)
   }
+  for (let r = 0; r <= rows; r += 1) {
+    const sy = r / rows
+    t.rowWave[r] = Math.cos(sy * 9.6 - time * 0.42)
+    t.rowSin[r] = Math.sin(sy * 13.1 - time * 0.31)
+    t.rowCos[r] = Math.cos(sy * 13.1 - time * 0.31)
+  }
+  return t
 }
 
-const drawVignette = (ctx: CanvasRenderingContext2D, w: number, h: number): void => {
-  const v = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75)
-  v.addColorStop(0, 'rgba(0,0,0,0)')
-  v.addColorStop(1, 'rgba(0,0,0,0.55)')
-  ctx.fillStyle = v
-  ctx.fillRect(0, 0, w, h)
+const heightAt = (sx: number, sy: number, slab: SlabKey, bumps: SlabBumps, time: number): number =>
+  shimmerAt(sx, sy, time) + bumpHeight(sx, sy, slab, bumps[slab])
+
+// ---------------------------------------------------------------------------
+// Cached pieces
+// ---------------------------------------------------------------------------
+
+const GLOW_SPRITE_SIZE = 128
+const glowSprites = new Map<string, HTMLCanvasElement>()
+
+const getGlowSprite = (color: string): HTMLCanvasElement => {
+  const cached = glowSprites.get(color)
+  if (cached) return cached
+  const sprite = document.createElement('canvas')
+  sprite.width = GLOW_SPRITE_SIZE
+  sprite.height = GLOW_SPRITE_SIZE
+  const ctx = sprite.getContext('2d')!
+  const mid = GLOW_SPRITE_SIZE / 2
+  const gradient = ctx.createRadialGradient(mid, mid, 0, mid, mid, mid)
+  gradient.addColorStop(0, color)
+  gradient.addColorStop(0.4, color)
+  gradient.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, GLOW_SPRITE_SIZE, GLOW_SPRITE_SIZE)
+  glowSprites.set(color, sprite)
+  return sprite
 }
 
-// Opaque band fills give the surface hidden-line occlusion: each strip
-// between two contour rows is painted back-to-front before its front contour
-// is stroked, so geometry behind a hill is covered.
-const bandFillCache = new Map<string, string[]>()
+const meshBuffers = new Map<string, { x: Float32Array; y: Float32Array }>()
 
-const getBandFills = (slab: Slab, rows: number): string[] => {
+const getMeshBuffers = (cols: number, rows: number) => {
+  const key = `${cols}x${rows}`
+  let buffers = meshBuffers.get(key)
+  if (!buffers) {
+    const size = (cols + 1) * (rows + 1)
+    buffers = { x: new Float32Array(size), y: new Float32Array(size) }
+    meshBuffers.set(key, buffers)
+  }
+  return buffers
+}
+
+const contextCache = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>()
+
+const getCanvasContext = (canvas: HTMLCanvasElement): CanvasRenderingContext2D | null => {
+  let ctx = contextCache.get(canvas)
+  if (!ctx) {
+    ctx = canvas.getContext('2d') ?? undefined
+    if (ctx) contextCache.set(canvas, ctx)
+  }
+  return ctx ?? null
+}
+
+const alphaStyleCache = new Map<string, string>()
+
+const withAlpha = (hex: string, alpha: number): string => {
+  const a = clamp(alpha, 0, 1).toFixed(3)
+  const cacheKey = `${hex}:${a}`
+  let value = alphaStyleCache.get(cacheKey)
+  if (value) return value
+  const digits = hex.replace('#', '')
+  const r = parseInt(digits.slice(0, 2), 16)
+  const g = parseInt(digits.slice(2, 4), 16)
+  const b = parseInt(digits.slice(4, 6), 16)
+  value = `rgba(${r}, ${g}, ${b}, ${a})`
+  alphaStyleCache.set(cacheKey, value)
+  return value
+}
+
+interface RowStyle {
+  fill: string
+  stitch: string
+  contour: string
+  contourWidth: number
+}
+
+const rowStyleCache = new Map<string, RowStyle[]>()
+
+// Row r is the contour at depth r / rows; its style is built once per mesh size.
+const getRowStyles = (slab: Slab, rows: number): RowStyle[] => {
   const key = `${slab.key}:${rows}`
-  const cached = bandFillCache.get(key)
+  const cached = rowStyleCache.get(key)
   if (cached) return cached
 
-  let h = slab.accent.replace('#', '')
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
-  const ar = parseInt(h.slice(0, 2), 16)
-  const ag = parseInt(h.slice(2, 4), 16)
-  const ab = parseInt(h.slice(4, 6), 16)
+  const digits = slab.accent.replace('#', '')
+  const ar = parseInt(digits.slice(0, 2), 16)
+  const ag = parseInt(digits.slice(2, 4), 16)
+  const ab = parseInt(digits.slice(4, 6), 16)
 
-  const fills: string[] = []
-  for (let r = 0; r < rows; r += 1) {
-    const depth = (r + 1) / rows
-    // Dark base lifted toward the front, with a small accent component so
-    // the fill is not pure black.
+  const styles: RowStyle[] = []
+  for (let r = 1; r <= rows; r += 1) {
+    const depth = r / rows
+    const isFront = r === rows
+    // Dark base lifted toward the viewer, with a little accent so the fill is not pure black.
     const lift = 1 + 0.5 * depth
     const tint = 0.045 + 0.075 * depth
-    const cr = Math.round(4 * lift + ar * tint)
-    const cg = Math.round(8 * lift + ag * tint)
-    const cb = Math.round(15 * lift + ab * tint)
-    fills.push(`rgba(${cr}, ${cg}, ${cb}, 0.97)`)
+    styles.push({
+      fill: `rgba(${Math.round(4 * lift + ar * tint)}, ${Math.round(8 * lift + ag * tint)}, ${Math.round(15 * lift + ab * tint)}, 0.97)`,
+      stitch: withAlpha(slab.accent, 0.05 + 0.11 * depth),
+      contour: withAlpha(slab.accent, isFront ? 0.92 : 0.15 + 0.55 * depth),
+      contourWidth: isFront ? 1.25 : 0.55 + 0.6 * depth
+    })
   }
-  bandFillCache.set(key, fills)
-  return fills
+  rowStyleCache.set(key, styles)
+  return styles
 }
 
-/** Render a single slab's occluded contour mesh + excitation overlays. */
-const drawSlab = (
+interface StaticLayers {
+  key: string
+  backdrop: HTMLCanvasElement
+  vignette: HTMLCanvasElement
+}
+
+let staticLayers: StaticLayers | null = null
+
+const paintOffscreen = (
+  width: number,
+  height: number,
+  dpr: number,
+  paint: (ctx: CanvasRenderingContext2D) => void
+): HTMLCanvasElement => {
+  const layer = document.createElement('canvas')
+  layer.width = Math.round(width * dpr)
+  layer.height = Math.round(height * dpr)
+  const ctx = layer.getContext('2d')!
+  ctx.scale(dpr, dpr)
+  paint(ctx)
+  return layer
+}
+
+// Neither layer changes between frames, so they are painted once per size.
+const getStaticLayers = (layout: StageLayout, dpr: number): StaticLayers => {
+  const { width, height } = layout
+  const key = `${width}x${height}@${dpr}`
+  if (staticLayers?.key === key) return staticLayers
+
+  const backdrop = paintOffscreen(width, height, dpr, (ctx) => {
+    const base = ctx.createRadialGradient(width * 0.5, height * 0.58, 0, width * 0.5, height * 0.58, Math.max(width, height) * 0.85)
+    base.addColorStop(0, '#08131b')
+    base.addColorStop(0.55, '#050a11')
+    base.addColorStop(1, '#02040a')
+    ctx.fillStyle = base
+    ctx.fillRect(0, 0, width, height)
+
+    for (const slab of [layout.slabs.electron, layout.slabs.photon]) {
+      const cy = slab.top + slab.height * 0.58
+      const wash = ctx.createRadialGradient(width * 0.5, cy, 0, width * 0.5, cy, Math.max(width, slab.height) * 0.7)
+      wash.addColorStop(0, slab.accentGlow)
+      wash.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = wash
+      ctx.fillRect(0, slab.top, width, slab.height)
+    }
+  })
+
+  const vignette = paintOffscreen(width, height, dpr, (ctx) => {
+    const edge = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.35, width / 2, height / 2, Math.max(width, height) * 0.75)
+    edge.addColorStop(0, 'rgba(0,0,0,0)')
+    edge.addColorStop(1, 'rgba(0,0,0,0.55)')
+    ctx.fillStyle = edge
+    ctx.fillRect(0, 0, width, height)
+  })
+
+  staticLayers = { key, backdrop, vignette }
+  return staticLayers
+}
+
+// ---------------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------------
+
+const drawMesh = (
   ctx: CanvasRenderingContext2D,
   slab: Slab,
   width: number,
   cols: number,
   rows: number,
-  excitations: Excitation[],
-  preps: PrepedExcitation[],
-  time: number,
-  selectedId: string | null,
-  projected: ProjectedParticle[]
+  bumps: SlabBumps,
+  shimmer: ShimmerTable
 ): void => {
-  // Precompute vertex grid (sx, sy, z) for this slab using typed arrays.
   const stride = cols + 1
-  const buffers = getMeshBuffers(cols, rows)
-  const gridX = buffers.x
-  const gridY = buffers.y
+  const { x: gridX, y: gridY } = getMeshBuffers(cols, rows)
+  const bumpList = bumps[slab.key]
+  const heightPx = slab.height * HEIGHT_SCALE_FRAC
+
   for (let r = 0; r <= rows; r += 1) {
     const sy = r / rows
+    const baseY = rowY(slab, sy)
+    const span = 2 * rowHalfWidth(width, sy)
+    const rowWave = shimmer.rowWave[r]
+    const rowSin = shimmer.rowSin[r]
+    const rowCos = shimmer.rowCos[r]
     for (let c = 0; c <= cols; c += 1) {
       const sx = c / cols
-      const z = evaluateFieldPrepped(sx, sy, slab.key, preps, time)
-      const p = project(sx, sy, z, slab, width)
+      const ripple =
+        SHIMMER_A * shimmer.colWave[c] * rowWave +
+        SHIMMER_B * (shimmer.colSin[c] * rowCos + shimmer.colCos[c] * rowSin)
+      const z = ripple + bumpHeight(sx, sy, slab.key, bumpList)
       const i = r * stride + c
-      gridX[i] = p.x
-      gridY[i] = p.y
+      gridX[i] = width * 0.5 + (sx - 0.5) * span
+      gridY[i] = baseY - z * heightPx
     }
   }
 
+  const styles = getRowStyles(slab, rows)
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  const fills = getBandFills(slab, rows)
 
-  // Back edge first, then paint each band over what lies behind it.
   ctx.strokeStyle = withAlpha(slab.accent, 0.16)
   ctx.lineWidth = 0.55
   ctx.beginPath()
   ctx.moveTo(gridX[0], gridY[0])
-  for (let c = 1; c <= cols; c += 1) {
-    ctx.lineTo(gridX[c], gridY[c])
-  }
+  for (let c = 1; c <= cols; c += 1) ctx.lineTo(gridX[c], gridY[c])
   ctx.stroke()
 
   for (let r = 1; r <= rows; r += 1) {
-    const depth = r / rows
+    const style = styles[r - 1]
     const prev = (r - 1) * stride
     const cur = r * stride
 
-    // Opaque strip between row r-1 and row r (the occluder).
-    ctx.fillStyle = fills[r - 1]
+    // Opaque strip between rows r-1 and r hides everything drawn behind it.
+    ctx.fillStyle = style.fill
     ctx.beginPath()
     ctx.moveTo(gridX[prev], gridY[prev])
-    for (let c = 1; c <= cols; c += 1) {
-      ctx.lineTo(gridX[prev + c], gridY[prev + c])
-    }
-    for (let c = cols; c >= 0; c -= 1) {
-      ctx.lineTo(gridX[cur + c], gridY[cur + c])
-    }
+    for (let c = 1; c <= cols; c += 1) ctx.lineTo(gridX[prev + c], gridY[prev + c])
+    for (let c = cols; c >= 0; c -= 1) ctx.lineTo(gridX[cur + c], gridY[cur + c])
     ctx.closePath()
     ctx.fill()
 
-    // Vertical stitches inside this band only, so hills occlude them too.
-    ctx.strokeStyle = withAlpha(slab.accent, 0.05 + 0.11 * depth)
+    ctx.strokeStyle = style.stitch
     ctx.lineWidth = 0.5
     ctx.beginPath()
     for (let c = 0; c <= cols; c += 1) {
@@ -525,36 +544,48 @@ const drawSlab = (
     }
     ctx.stroke()
 
-    // Contour line at row r, brighter and heavier toward the viewer.
-    const isFront = r === rows
-    ctx.strokeStyle = withAlpha(slab.accent, isFront ? 0.92 : 0.15 + 0.55 * depth)
-    ctx.lineWidth = isFront ? 1.25 : 0.55 + 0.6 * depth
+    ctx.strokeStyle = style.contour
+    ctx.lineWidth = style.contourWidth
     ctx.beginPath()
     ctx.moveTo(gridX[cur], gridY[cur])
-    for (let c = 1; c <= cols; c += 1) {
-      ctx.lineTo(gridX[cur + c], gridY[cur + c])
-    }
+    for (let c = 1; c <= cols; c += 1) ctx.lineTo(gridX[cur + c], gridY[cur + c])
     ctx.stroke()
   }
+}
 
-  // Excitation crowns: soft glow + bright core projected at their field position.
+const drawArrowHead = (ctx: CanvasRenderingContext2D, tip: Vec2, theta: number, size: number, spread: number): void => {
+  ctx.beginPath()
+  ctx.moveTo(tip.x, tip.y)
+  ctx.lineTo(tip.x - size * Math.cos(theta - spread), tip.y - size * Math.sin(theta - spread))
+  ctx.lineTo(tip.x - size * Math.cos(theta + spread), tip.y - size * Math.sin(theta + spread))
+  ctx.closePath()
+  ctx.fill()
+}
+
+const drawPackets = (
+  ctx: CanvasRenderingContext2D,
+  slab: Slab,
+  width: number,
+  excitations: Excitation[],
+  bumps: SlabBumps,
+  time: number,
+  selectedId: string | null,
+  projected: ProjectedParticle[]
+): void => {
   for (const e of excitations) {
     if (!e.alive || e.field !== slab.key) continue
-    const z = evaluateFieldPrepped(e.position.x, e.position.y, slab.key, preps, time)
+    const z = heightAt(e.position.x, e.position.y, slab.key, bumps, time)
     const p = project(e.position.x, e.position.y, z, slab, width)
-    const selected = e.id === selectedId
     const color = particleColor(e)
     const mag = magnitude(e.momentum)
     const radius = 4.5 + 2.6 * Math.min(2.2, mag) + 2.5 * Math.min(1.2, Math.abs(z))
 
-    // Soft probability cloud via cached sprite.
     const sprite = getGlowSprite(color)
-    const s = radius * 3.4 / (GLOW_SPRITE_SIZE / 2)
+    const glowSize = radius * 3.4 * 2
     ctx.globalAlpha = 0.55
-    ctx.drawImage(sprite, p.x - sprite.width * s * 0.5, p.y - sprite.height * s * 0.5, sprite.width * s, sprite.height * s)
+    ctx.drawImage(sprite, p.x - glowSize / 2, p.y - glowSize / 2, glowSize, glowSize)
     ctx.globalAlpha = 1
 
-    // Crisp core
     ctx.fillStyle = '#ffffff'
     ctx.beginPath()
     ctx.arc(p.x, p.y, radius * 0.42, 0, Math.PI * 2)
@@ -566,13 +597,12 @@ const drawSlab = (
     ctx.arc(p.x, p.y, radius, 0, Math.PI * 2)
     ctx.stroke()
 
-    // Momentum tick
     if (mag > 0.05) {
-      const ang = Math.atan2(e.momentum.y, e.momentum.x)
-      // Momentum is defined on the flat (sx, sy) plane. Project both endpoints.
+      const reach = 0.08 * Math.min(3, mag)
+      const angle = Math.atan2(e.momentum.y, e.momentum.x)
       const tip = project(
-        clamp(e.position.x + Math.cos(ang) * 0.08 * Math.min(3, mag), 0, 1),
-        clamp(e.position.y + Math.sin(ang) * 0.08 * Math.min(3, mag), 0, 1),
+        clamp(e.position.x + Math.cos(angle) * reach, 0, 1),
+        clamp(e.position.y + Math.sin(angle) * reach, 0, 1),
         z,
         slab,
         width
@@ -583,18 +613,11 @@ const drawSlab = (
       ctx.moveTo(p.x, p.y)
       ctx.lineTo(tip.x, tip.y)
       ctx.stroke()
-      // arrow head
-      const theta = Math.atan2(tip.y - p.y, tip.x - p.x)
       ctx.fillStyle = withAlpha(color, 0.95)
-      ctx.beginPath()
-      ctx.moveTo(tip.x, tip.y)
-      ctx.lineTo(tip.x - 7 * Math.cos(theta - 0.4), tip.y - 7 * Math.sin(theta - 0.4))
-      ctx.lineTo(tip.x - 7 * Math.cos(theta + 0.4), tip.y - 7 * Math.sin(theta + 0.4))
-      ctx.closePath()
-      ctx.fill()
+      drawArrowHead(ctx, tip, Math.atan2(tip.y - p.y, tip.x - p.x), 7, 0.4)
     }
 
-    if (selected) {
+    if (e.id === selectedId) {
       ctx.strokeStyle = 'rgba(255,255,255,0.9)'
       ctx.setLineDash([3, 4])
       ctx.lineWidth = 1
@@ -608,16 +631,10 @@ const drawSlab = (
   }
 }
 
-const drawDragPreview = (
-  ctx: CanvasRenderingContext2D,
-  preview: DragPreview,
-  layout: StageLayout
-): void => {
-  const slab = layout.slabs[preview.panel as SlabKey]
-  if (!slab) return
-  const z0 = 0
-  const start = project(preview.start.x, preview.start.y, z0, slab, layout.width)
-  const end = project(preview.end.x, preview.end.y, z0, slab, layout.width)
+const drawDragPreview = (ctx: CanvasRenderingContext2D, preview: DragPreview, layout: StageLayout): void => {
+  const slab = layout.slabs[preview.panel]
+  const start = project(preview.start.x, preview.start.y, 0, slab, layout.width)
+  const end = project(preview.end.x, preview.end.y, 0, slab, layout.width)
   ctx.strokeStyle = 'rgba(255,255,255,0.85)'
   ctx.lineWidth = 1.6
   ctx.setLineDash([6, 5])
@@ -626,71 +643,53 @@ const drawDragPreview = (
   ctx.lineTo(end.x, end.y)
   ctx.stroke()
   ctx.setLineDash([])
-  const ang = Math.atan2(end.y - start.y, end.x - start.x)
   ctx.fillStyle = 'rgba(255,255,255,0.95)'
-  ctx.beginPath()
-  ctx.moveTo(end.x, end.y)
-  ctx.lineTo(end.x - 9 * Math.cos(ang - 0.35), end.y - 9 * Math.sin(ang - 0.35))
-  ctx.lineTo(end.x - 9 * Math.cos(ang + 0.35), end.y - 9 * Math.sin(ang + 0.35))
-  ctx.closePath()
-  ctx.fill()
+  drawArrowHead(ctx, end, Math.atan2(end.y - start.y, end.x - start.x), 9, 0.35)
 }
 
 const drawShockwave = (
   ctx: CanvasRenderingContext2D,
-  sw: ShockwaveEffect,
+  shock: ShockwaveEffect,
   layout: StageLayout,
-  panel: SlabKey = sw.panel,
-  intensity = 1
+  panel: SlabKey,
+  intensity: number
 ): void => {
   const slab = layout.slabs[panel]
-  if (!slab) return
-  const c = project(sw.position.x, sw.position.y, 0, slab, layout.width)
-  const t = clamp(sw.age / sw.duration, 0, 1)
+  const center = project(shock.position.x, shock.position.y, 0, slab, layout.width)
+  const t = clamp(shock.age / shock.duration, 0, 1)
   ctx.save()
   ctx.globalCompositeOperation = 'lighter'
   const flash = (1 - t) * 0.8 * intensity
   if (flash > 0) {
-    const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 90)
-    g.addColorStop(0, `rgba(255,255,255,${flash.toFixed(3)})`)
-    g.addColorStop(0.4, withAlpha(slab.accent, flash * 0.6))
-    g.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = g
+    const glow = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, 90)
+    glow.addColorStop(0, `rgba(255,255,255,${flash.toFixed(3)})`)
+    glow.addColorStop(0.4, withAlpha(slab.accent, flash * 0.6))
+    glow.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = glow
     ctx.beginPath()
-    ctx.arc(c.x, c.y, 90, 0, Math.PI * 2)
+    ctx.arc(center.x, center.y, 90, 0, Math.PI * 2)
     ctx.fill()
   }
   for (let i = 0; i < 3; i += 1) {
     const phase = clamp(t - i * 0.08, 0, 1)
     if (phase <= 0 || phase >= 1) continue
-    const r = phase * 220 * (0.6 + 0.4 * intensity)
-    const a = (1 - phase) * 0.5 * intensity
-    ctx.strokeStyle = withAlpha(slab.accent, a)
+    ctx.strokeStyle = withAlpha(slab.accent, (1 - phase) * 0.5 * intensity)
     ctx.lineWidth = 2.4 - i * 0.6
     ctx.beginPath()
-    ctx.arc(c.x, c.y, r, 0, Math.PI * 2)
+    ctx.arc(center.x, center.y, phase * 220 * (0.6 + 0.4 * intensity), 0, Math.PI * 2)
     ctx.stroke()
   }
   ctx.restore()
 }
 
-const drawHoverOutline = (
-  ctx: CanvasRenderingContext2D,
-  slab: Slab,
-  width: number
-): void => {
-  const tl = project(0, 0, 0, slab, width)
-  const tr = project(1, 0, 0, slab, width)
-  const br = project(1, 1, 0, slab, width)
-  const bl = project(0, 1, 0, slab, width)
+const drawHoverOutline = (ctx: CanvasRenderingContext2D, slab: Slab, width: number): void => {
+  const corners = [project(0, 0, 0, slab, width), project(1, 0, 0, slab, width), project(1, 1, 0, slab, width), project(0, 1, 0, slab, width)]
   ctx.strokeStyle = 'rgba(255,255,255,0.18)'
   ctx.lineWidth = 1
   ctx.setLineDash([4, 6])
   ctx.beginPath()
-  ctx.moveTo(tl.x, tl.y)
-  ctx.lineTo(tr.x, tr.y)
-  ctx.lineTo(br.x, br.y)
-  ctx.lineTo(bl.x, bl.y)
+  ctx.moveTo(corners[0].x, corners[0].y)
+  for (let i = 1; i < corners.length; i += 1) ctx.lineTo(corners[i].x, corners[i].y)
   ctx.closePath()
   ctx.stroke()
   ctx.setLineDash([])
@@ -700,173 +699,81 @@ const drawTraces = (
   ctx: CanvasRenderingContext2D,
   layout: StageLayout,
   excitations: Excitation[],
-  preps: PrepedExcitation[],
+  bumps: SlabBumps,
   traces: Map<string, Vec2[]>,
   time: number
 ): void => {
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
   for (const e of excitations) {
     if (!e.alive) continue
-    const slab = layout.slabs[e.field as SlabKey]
-    if (!slab) continue
     const trail = traces.get(e.id)
     if (!trail || trail.length < 2) continue
+    const slab = layout.slabs[e.field]
     const color = particleColor(e)
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
+
+    let previous = trail[0]
+    let previousPoint = project(previous.x, previous.y, heightAt(previous.x, previous.y, slab.key, bumps, time), slab, layout.width)
     for (let i = 1; i < trail.length; i += 1) {
-      const a = trail[i - 1]
-      const b = trail[i]
-      const za = evaluateFieldPrepped(a.x, a.y, slab.key, preps, time)
-      const zb = evaluateFieldPrepped(b.x, b.y, slab.key, preps, time)
-      const pa = project(a.x, a.y, za, slab, layout.width)
-      const pb = project(b.x, b.y, zb, slab, layout.width)
-      const t = i / (trail.length - 1)
-      ctx.strokeStyle = withAlpha(color, 0.12 + 0.55 * t)
-      ctx.lineWidth = 0.8 + 1.8 * t
-      ctx.beginPath()
-      ctx.moveTo(pa.x, pa.y)
-      ctx.lineTo(pb.x, pb.y)
-      ctx.stroke()
+      const next = trail[i]
+      const point = project(next.x, next.y, heightAt(next.x, next.y, slab.key, bumps, time), slab, layout.width)
+      // A jump across the torus seam is a wrap, not a stroke across the stage.
+      const wrapped = Math.abs(next.x - previous.x) > 0.5 || Math.abs(next.y - previous.y) > 0.5
+      if (!wrapped) {
+        const t = i / (trail.length - 1)
+        ctx.strokeStyle = withAlpha(color, 0.12 + 0.55 * t)
+        ctx.lineWidth = 0.8 + 1.8 * t
+        ctx.beginPath()
+        ctx.moveTo(previousPoint.x, previousPoint.y)
+        ctx.lineTo(point.x, point.y)
+        ctx.stroke()
+      }
+      previous = next
+      previousPoint = point
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Color utilities (keep tight to avoid reflowing parse helpers).
-// ---------------------------------------------------------------------------
-
-const withAlpha = (hex: string, alpha: number): string => {
-  const a = clamp(alpha, 0, 1)
-  const alphaKey = a.toFixed(3)
-  const cacheKey = `${hex}:${alphaKey}`
-  const cached = alphaStyleCache.get(cacheKey)
-  if (cached) return cached
-
-  let value: string
-  if (hex.startsWith('rgba') || hex.startsWith('rgb')) {
-    // Assume rgb(a), append or replace alpha naively.
-    if (hex.startsWith('rgba')) {
-      value = hex.replace(/,[^,]+\)$/i, `,${alphaKey})`)
-    } else {
-      value = hex.replace(/^rgb\(/, 'rgba(').replace(/\)$/, `,${alphaKey})`)
-    }
-    alphaStyleCache.set(cacheKey, value)
-    return value
-  }
-  // Hex
-  let h = hex.replace('#', '')
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  value = `rgba(${r}, ${g}, ${b}, ${alphaKey})`
-  alphaStyleCache.set(cacheKey, value)
-  return value
-}
-
-export const particleColor = (e: Excitation): string => {
-  if (e.field === 'photon') return '#f5c77a'
-  return e.charge < 0 ? '#8cf0d4' : '#ff7aa8'
-}
-
-export const particleLabel = (e: Excitation): string => {
-  if (e.field === 'photon') return 'photon'
-  if (e.charge < 0) return 'electron'
-  return 'positron'
-}
-
-// ---------------------------------------------------------------------------
-// Public API
+// Frame
 // ---------------------------------------------------------------------------
 
 export const renderStage = (input: RenderStageInput): void => {
-  const {
-    canvas,
-    layout,
-    excitations,
-    time,
-    renderTime,
-    selectedId,
-    preview,
-    shockwave,
-    showTraces,
-    traces,
-    hoverPanel,
-    projectedParticles
-  } = input
+  const { canvas, layout, excitations, time, selectedId, preview, shockwave, showTraces, traces, hoverPanel, projectedParticles } = input
   const ctx = getCanvasContext(canvas)
   if (!ctx) return
 
+  // This function owns the backing-store size. Assigning canvas.width
+  // reallocates the bitmap, so it only happens when the size really changes.
   const dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1)
   const targetW = Math.round(layout.width * dpr)
   const targetH = Math.round(layout.height * dpr)
-  if (canvas.width !== targetW || canvas.height !== targetH) {
-    canvas.width = targetW
-    canvas.height = targetH
-  }
+  if (canvas.width !== targetW) canvas.width = targetW
+  if (canvas.height !== targetH) canvas.height = targetH
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-  ctx.clearRect(0, 0, layout.width, layout.height)
 
-  // Simulation time drives everything packet-related (wavepackets, breathing,
-  // ambient shimmer) so pressing Pause truly freezes the stage. Wall time is
-  // only used for the slow backdrop drift, which is subtle enough to not read
-  // as "still running".
-  const simTime = time
-  const wallTime = renderTime ?? time
-  drawBackdrop(ctx, layout, wallTime)
+  const layers = getStaticLayers(layout, dpr)
+  ctx.drawImage(layers.backdrop, 0, 0, layout.width, layout.height)
 
-  const preps = prepareExcitations(excitations, simTime)
+  // Simulation time drives every packet effect, so pausing freezes the stage.
+  const bumps = prepareBumps(excitations, time)
   const mesh = getMeshResolution(layout.width)
-  const projected: ProjectedParticle[] = []
-  drawSlab(
-    ctx,
-    layout.slabs.electron,
-    layout.width,
-    mesh.cols,
-    mesh.rows,
-    excitations,
-    preps,
-    simTime,
-    selectedId,
-    projected
-  )
-  drawSlab(
-    ctx,
-    layout.slabs.photon,
-    layout.width,
-    mesh.cols,
-    mesh.rows,
-    excitations,
-    preps,
-    simTime,
-    selectedId,
-    projected
-  )
+  const shimmer = fillShimmerTable(mesh.cols, mesh.rows, time)
 
-  if (showTraces) {
-    drawTraces(ctx, layout, excitations, preps, traces, simTime)
+  projectedParticles.length = 0
+  for (const slab of [layout.slabs.electron, layout.slabs.photon]) {
+    drawMesh(ctx, slab, layout.width, mesh.cols, mesh.rows, bumps, shimmer)
+    drawPackets(ctx, slab, layout.width, excitations, bumps, time, selectedId, projectedParticles)
   }
 
-  if (hoverPanel) {
-    drawHoverOutline(ctx, layout.slabs[hoverPanel], layout.width)
-  }
-
-  if (preview) {
-    drawDragPreview(ctx, preview, layout)
-  }
-
+  if (showTraces) drawTraces(ctx, layout, excitations, bumps, traces, time)
+  if (hoverPanel) drawHoverOutline(ctx, layout.slabs[hoverPanel], layout.width)
+  if (preview) drawDragPreview(ctx, preview, layout)
   if (shockwave) {
-    // Main burst on the photon slab where the photons appear, plus a fainter
-    // echo on the electron slab where the pair vanished.
-    drawShockwave(ctx, shockwave, layout)
+    drawShockwave(ctx, shockwave, layout, shockwave.panel, 1)
+    // A fainter echo where the pair vanished.
     drawShockwave(ctx, shockwave, layout, 'electron', 0.4)
   }
 
-  drawVignette(ctx, layout.width, layout.height)
-
-  if (projectedParticles) {
-    projectedParticles.length = 0
-    projectedParticles.push(...projected)
-  }
-
+  ctx.drawImage(layers.vignette, 0, 0, layout.width, layout.height)
 }

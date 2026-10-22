@@ -1,5 +1,5 @@
-import type { DragPreview, Excitation, SimulationState, Vec2 } from '../types/particle'
-import type { SimulationOptions, PresetId } from '../types/simulation'
+import type { AnnihilationMode, DragPreview, Excitation, SimulationState, Vec2 } from '../types/particle'
+import type { PresetId, SimulationOptions } from '../types/simulation'
 import {
   clearAll,
   moveExcitation,
@@ -14,26 +14,24 @@ import {
   DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE
 } from '../simulation/constants'
 import { getPreset, defaultPresetId } from '../simulation/presets'
-import {
-  buildStageLayout,
-  pickSlab,
-  renderStage,
-  unproject
-} from '../rendering/fieldRenderer'
-import type { ProjectedParticle, SlabKey } from '../rendering/fieldRenderer'
-import type { AnnihilationMode } from '../types/particle'
+import { buildStageLayout, pickSlab, renderStage, unproject } from '../rendering/fieldRenderer'
+import type { ProjectedParticle, ShockwaveEffect, SlabKey, StageLayout } from '../rendering/fieldRenderer'
+import { clamp, magnitude, minSignedWrapOffset, scale, sub, wrap01 } from '../utils/vector'
 
 const FIXED_SIM_DT = 1 / 120
 const MAX_SUBSTEPS = 12
 const MAX_FRAME_DT = 1 / 20
 const MIN_FRAME_DT = 1 / 240
+const MIN_RENDER_INTERVAL_MS = 1000 / 60 - 1
+const UI_EMIT_INTERVAL_MS = 100
 const DRAG_SCALE = 2.2
-const DRAG_MAX_MAG = 2.3
+export const DRAG_MAX_MAG = 2.3
 const DRAG_ZERO_MAG = 0.004
 const SHOCKWAVE_DURATION = 1.6
 const TRACE_LENGTH = 120
+const PICK_SLOP_PX = 8
 
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+export type Tool = 'select' | 'electron' | 'positron' | 'photon'
 
 export interface GameLoopUIState {
   time: number
@@ -46,81 +44,56 @@ export interface GameLoopUIState {
 type RunningHandler = (running: boolean) => void
 type StateHandler = (state: GameLoopUIState) => void
 
-function buildSimulationOptions(
-  mode: AnnihilationMode,
-  angleRadians: number
-): SimulationOptions {
-  return {
-    annihilationDistance: DEFAULT_ANNIHILATION_DISTANCE,
-    annihilationMode: mode,
-    annihilationScatteringAngle: angleRadians
-  }
-}
-
-function magnitude(v: Vec2): number {
-  return Math.hypot(v.x, v.y)
-}
-
-function sub(a: Vec2, b: Vec2): Vec2 {
-  return { x: a.x - b.x, y: a.y - b.y }
-}
-
-function scale(v: Vec2, s: number): Vec2 {
-  return { x: v.x * s, y: v.y * s }
-}
-
-function momentumFromPreview(preview: DragPreview): Vec2 {
-  const raw = sub(preview.end, preview.start)
-  const scaled = scale(raw, DRAG_SCALE)
+const momentumFromPreview = (preview: DragPreview): Vec2 => {
+  const scaled = scale(sub(preview.end, preview.start), DRAG_SCALE)
   const mag = magnitude(scaled)
-  if (mag <= DRAG_MAX_MAG || mag === 0) return scaled
-  return scale(scaled, DRAG_MAX_MAG / mag)
+  return mag <= DRAG_MAX_MAG ? scaled : scale(scaled, DRAG_MAX_MAG / mag)
 }
 
-function canSpawnInPanel(tool: string, panel: SlabKey): boolean {
-  if (panel === 'photon') return tool === 'photon'
-  return tool === 'electron' || tool === 'positron'
-}
+const canSpawnInPanel = (tool: Tool, panel: SlabKey): boolean =>
+  panel === 'photon' ? tool === 'photon' : tool === 'electron' || tool === 'positron'
 
-function spawnKindForTool(tool: 'electron' | 'positron' | 'photon'): 'spawn-electron' | 'spawn-positron' | 'spawn-photon' {
-  if (tool === 'photon') return 'spawn-photon'
-  if (tool === 'positron') return 'spawn-positron'
-  return 'spawn-electron'
-}
+const spawnKindFor = (tool: Exclude<Tool, 'select'>) =>
+  tool === 'photon' ? 'spawn-photon' : tool === 'positron' ? 'spawn-positron' : 'spawn-electron'
+
+const lerpWrapped = (from: number, to: number, t: number): number =>
+  wrap01(from + minSignedWrapOffset(to - from) * t)
 
 export class GameLoop {
   private canvas: HTMLCanvasElement | null = null
   private container: HTMLElement | null = null
+  private layout: StageLayout | null = null
 
   private state: SimulationState
+  // The state before the most recent fixed step, kept so the stage can draw
+  // between two steps instead of snapping to whichever one finished last.
+  private previousState: SimulationState | null = null
   private running = false
   private currentPresetId: PresetId = defaultPresetId
   private timeScale = 1
   private showTraces = false
   private annihilationMode: AnnihilationMode = DEFAULT_ANNIHILATION_MODE
   private annihilationAngleRadians = DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE
+  private tool: Tool = 'select'
 
   private trails = new Map<string, Vec2[]>()
   private projectedParticles: ProjectedParticle[] = []
-  private frameAccumulator = 0
-  private previousRenderTime = 0
-  private simPreviousTime = 0
-  private wallTimeStart = 0
+  private stepRemainder = 0
+  private lastRenderTime = 0
+  private lastSimTime = 0
   private rafId = 0
+  private dirty = true
 
   private preview: DragPreview | null = null
   private dragId: string | null = null
-  private dragPanel: SlabKey | null = null
   private hoverPanel: SlabKey | null = null
   private selectedId: string | null = null
-  private tool: 'select' | 'electron' | 'positron' | 'photon' = 'select'
 
-  private shockwaveStartRef: { eventId: string; start: number } | null = null
-  private completedShockwaveIdRef: string | null = null
+  private shock: { eventId: string; start: number } | null = null
+  private shockDoneId: string | null = null
 
   private runningListeners = new Set<RunningHandler>()
   private stateListeners = new Set<StateHandler>()
-
   private lastUIEmitTime = 0
   private uiDirty = false
 
@@ -131,15 +104,23 @@ export class GameLoop {
   mount(canvas: HTMLCanvasElement, container: HTMLElement) {
     this.canvas = canvas
     this.container = container
-    this.wallTimeStart = performance.now()
-    this.previousRenderTime = this.wallTimeStart
-    this.simPreviousTime = this.wallTimeStart
-    this.rafId = requestAnimationFrame((t) => this.loop(t))
+    this.lastSimTime = performance.now()
+    this.dirty = true
+    this.rafId = requestAnimationFrame(this.loop)
   }
 
   unmount() {
-    if (this.rafId) cancelAnimationFrame(this.rafId)
+    cancelAnimationFrame(this.rafId)
     this.rafId = 0
+    this.canvas = null
+    this.container = null
+  }
+
+  /** Called by the stage's ResizeObserver with the container's CSS size. */
+  resize(width: number, height: number) {
+    if (this.layout?.width === width && this.layout.height === height) return
+    this.layout = buildStageLayout(width, height)
+    this.dirty = true
   }
 
   onRunningChange(handler: RunningHandler) {
@@ -158,165 +139,207 @@ export class GameLoop {
     this.stateListeners.delete(handler)
   }
 
+  // ---------------------------------------------------------------------------
+  // State and UI plumbing
+  // ---------------------------------------------------------------------------
+
   private emitRunning() {
-    for (const h of this.runningListeners) h(this.running)
+    for (const handler of this.runningListeners) handler(this.running)
   }
 
   private emitState(force = false) {
+    this.dirty = true
     const now = performance.now()
-    if (!force && now - this.lastUIEmitTime < 100) {
+    if (!force && now - this.lastUIEmitTime < UI_EMIT_INTERVAL_MS) {
       this.uiDirty = true
       return
     }
     this.lastUIEmitTime = now
     this.uiDirty = false
     const ui = this.getUIState()
-    for (const h of this.stateListeners) h(ui)
+    for (const handler of this.stateListeners) handler(ui)
   }
 
   private getUIState(): GameLoopUIState {
-    const alive = this.state.excitations.filter((e) => e.alive)
+    let electrons = 0
+    let photons = 0
+    let selected: Excitation | null = null
+    for (const e of this.state.excitations) {
+      if (!e.alive) continue
+      if (e.field === 'electron') electrons += 1
+      else photons += 1
+      if (e.selected) selected = e
+    }
     return {
       time: this.state.time,
-      aliveElectronCount: alive.filter((e) => e.field === 'electron').length,
-      alivePhotonCount: alive.filter((e) => e.field === 'photon').length,
-      selected: alive.find((e) => e.selected) ?? null,
+      aliveElectronCount: electrons,
+      alivePhotonCount: photons,
+      selected,
       lastAnnihilation: this.state.lastAnnihilation
     }
   }
 
   private getSimulationOptions(): SimulationOptions {
-    return buildSimulationOptions(this.annihilationMode, this.annihilationAngleRadians)
+    return {
+      annihilationDistance: DEFAULT_ANNIHILATION_DISTANCE,
+      annihilationMode: this.annihilationMode,
+      annihilationScatteringAngle: this.annihilationAngleRadians
+    }
+  }
+
+  /** Replace the state after anything other than a fixed step. */
+  private setState(next: SimulationState) {
+    this.state = next
+    this.previousState = null
+  }
+
+  private resetInteraction() {
+    this.trails.clear()
+    this.preview = null
+    this.dragId = null
+    this.hoverPanel = null
+    this.selectedId = null
+    this.shock = null
+    this.shockDoneId = null
   }
 
   // ---------------------------------------------------------------------------
-  // Main loop
+  // Frame loop
   // ---------------------------------------------------------------------------
 
   private loop = (now: number) => {
-    if (!this.canvas || !this.container) {
-      this.rafId = requestAnimationFrame(this.loop)
+    this.rafId = requestAnimationFrame(this.loop)
+    if (!this.canvas || !this.layout || this.layout.width < 2 || this.layout.height < 2) return
+
+    const shockwave = this.currentShockwave(now)
+    const animating = this.running || this.preview !== null || shockwave !== null
+
+    // A paused, untouched stage costs nothing: no stepping and no drawing.
+    if (!animating && !this.dirty) {
+      this.lastSimTime = now
+      this.flushQueuedUIState()
       return
     }
+    if (animating && now - this.lastRenderTime < MIN_RENDER_INTERVAL_MS) return
+    this.lastRenderTime = now
+    this.dirty = false
 
-    const rect = this.container.getBoundingClientRect()
-    const width = rect.width
-    const height = rect.height
+    if (this.running) this.advance(now)
+    else this.lastSimTime = now
 
-    if (width > 2 && height > 2) {
-      const hasActiveAnim = this.running || this.preview !== null || this.state.lastAnnihilation !== null
-      const targetInterval = hasActiveAnim ? 1000 / 60 : 1000 / 20
+    const frame = this.frameForDrawing()
+    if (this.showTraces && this.running) this.recordTraces(frame.excitations)
 
-      if (now - this.previousRenderTime >= targetInterval - 1) {
-        this.previousRenderTime = now
+    renderStage({
+      canvas: this.canvas,
+      layout: this.layout,
+      excitations: frame.excitations,
+      time: frame.time,
+      selectedId: this.selectedId,
+      preview: this.preview,
+      shockwave,
+      showTraces: this.showTraces,
+      traces: this.trails,
+      hoverPanel: this.hoverPanel,
+      projectedParticles: this.projectedParticles
+    })
 
-        // Physics step
-        if (this.running) {
-          const dt = (now - this.simPreviousTime) / 1000
-          this.simPreviousTime = now
-          const frame = Math.min(MAX_FRAME_DT, Math.max(MIN_FRAME_DT, dt * this.timeScale))
-          this.frameAccumulator += frame
-          let substeps = 0
-          let next = this.state
-          while (this.frameAccumulator >= FIXED_SIM_DT && substeps < MAX_SUBSTEPS) {
-            this.frameAccumulator -= FIXED_SIM_DT
-            next = stepSimulation(next, FIXED_SIM_DT, this.getSimulationOptions())
-            substeps += 1
-          }
-          if (substeps === MAX_SUBSTEPS) this.frameAccumulator = 0
-          if (substeps > 0) {
-            this.state = next
-            this.emitState()
+    this.flushQueuedUIState()
+  }
 
-            // Update traces
-            if (this.showTraces) {
-              for (const e of this.state.excitations) {
-                if (!e.alive) {
-                  this.trails.delete(e.id)
-                  continue
-                }
-                const prior = this.trails.get(e.id) ?? []
-                const updated = [...prior, e.position]
-                if (updated.length > TRACE_LENGTH) updated.shift()
-                this.trails.set(e.id, updated)
-              }
-            } else {
-              this.trails.clear()
-            }
-          }
-        } else {
-          this.simPreviousTime = now
-        }
-
-        // Resize canvas
-        const dpr = Math.min(window.devicePixelRatio || 1, 2)
-        const cssW = Math.round(width)
-        const cssH = Math.round(height)
-        if (this.canvas.width !== cssW * dpr || this.canvas.height !== cssH * dpr) {
-          this.canvas.width = cssW * dpr
-          this.canvas.height = cssH * dpr
-        }
-        const ctx = this.canvas.getContext('2d')
-        if (ctx) {
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-        }
-
-        // Build layout
-        const layout = buildStageLayout(width, height)
-
-        // Build shockwave
-        let activeShock: { panel: SlabKey; position: Vec2; age: number; duration: number } | null = null
-        const lastAnn = this.state.lastAnnihilation
-        if (lastAnn) {
-          const eventId = lastAnn.eventId
-          if (this.completedShockwaveIdRef !== eventId) {
-            if (!this.shockwaveStartRef || this.shockwaveStartRef.eventId !== eventId) {
-              this.shockwaveStartRef = { eventId, start: now }
-            }
-            const age = (now - this.shockwaveStartRef.start) / 1000
-            if (age <= SHOCKWAVE_DURATION) {
-              activeShock = {
-                panel: 'photon',
-                position: lastAnn.spawnPosition,
-                age,
-                duration: SHOCKWAVE_DURATION
-              }
-            } else {
-              this.completedShockwaveIdRef = eventId
-              this.shockwaveStartRef = null
-            }
-          }
-        } else {
-          this.shockwaveStartRef = null
-          this.completedShockwaveIdRef = null
-        }
-
-        // Render
-        this.projectedParticles = []
-        const renderTime = (now - this.wallTimeStart) / 1000
-        renderStage({
-          canvas: this.canvas,
-          layout,
-          excitations: this.state.excitations,
-          time: this.state.time,
-          renderTime,
-          selectedId: this.selectedId,
-          preview: this.preview,
-          shockwave: activeShock,
-          showTraces: this.showTraces,
-          traces: this.trails,
-          hoverPanel: this.hoverPanel,
-          projectedParticles: this.projectedParticles
-        })
-      }
-    }
-
-    // Emit queued UI state even if we skipped render this frame
-    if (this.uiDirty && performance.now() - this.lastUIEmitTime >= 100) {
+  private flushQueuedUIState() {
+    if (this.uiDirty && performance.now() - this.lastUIEmitTime >= UI_EMIT_INTERVAL_MS) {
       this.emitState(true)
     }
+  }
 
-    this.rafId = requestAnimationFrame(this.loop)
+  private advance(now: number) {
+    const elapsed = (now - this.lastSimTime) / 1000
+    this.lastSimTime = now
+    this.stepRemainder += clamp(elapsed * this.timeScale, MIN_FRAME_DT, MAX_FRAME_DT)
+
+    let steps = 0
+    let next = this.state
+    let before = this.state
+    while (this.stepRemainder >= FIXED_SIM_DT && steps < MAX_SUBSTEPS) {
+      this.stepRemainder -= FIXED_SIM_DT
+      before = next
+      next = stepSimulation(next, FIXED_SIM_DT, this.getSimulationOptions())
+      steps += 1
+    }
+    if (steps === MAX_SUBSTEPS) this.stepRemainder = 0
+    if (steps > 0) {
+      this.previousState = before
+      this.state = next
+      this.emitState()
+    }
+  }
+
+  /**
+   * Positions, phases, and time at the moment being drawn: a blend of the last
+   * two fixed steps weighted by how far into the next step the clock has run.
+   */
+  private frameForDrawing(): { excitations: Excitation[]; time: number } {
+    const previous = this.previousState
+    const alpha = this.stepRemainder / FIXED_SIM_DT
+    if (!this.running || !previous || alpha <= 0) {
+      return { excitations: this.state.excitations, time: this.state.time }
+    }
+
+    const before = new Map<string, Excitation>()
+    for (const e of previous.excitations) before.set(e.id, e)
+
+    const excitations = this.state.excitations.map((current) => {
+      const earlier = before.get(current.id)
+      if (!earlier || !current.alive) return current
+      return {
+        ...current,
+        position: {
+          x: lerpWrapped(earlier.position.x, current.position.x, alpha),
+          y: lerpWrapped(earlier.position.y, current.position.y, alpha)
+        },
+        phase: earlier.phase + (current.phase - earlier.phase) * alpha
+      }
+    })
+    return { excitations, time: previous.time + (this.state.time - previous.time) * alpha }
+  }
+
+  private recordTraces(excitations: Excitation[]) {
+    const live = new Set<string>()
+    for (const e of excitations) {
+      if (!e.alive) continue
+      live.add(e.id)
+      let trail = this.trails.get(e.id)
+      if (!trail) {
+        trail = []
+        this.trails.set(e.id, trail)
+      }
+      trail.push(e.position)
+      if (trail.length > TRACE_LENGTH) trail.shift()
+    }
+    for (const id of this.trails.keys()) {
+      if (!live.has(id)) this.trails.delete(id)
+    }
+  }
+
+  private currentShockwave(now: number): ShockwaveEffect | null {
+    const event = this.state.lastAnnihilation
+    if (!event) {
+      this.shock = null
+      this.shockDoneId = null
+      return null
+    }
+    if (event.eventId === this.shockDoneId) return null
+    if (this.shock?.eventId !== event.eventId) this.shock = { eventId: event.eventId, start: now }
+
+    const age = (now - this.shock.start) / 1000
+    if (age > SHOCKWAVE_DURATION) {
+      this.shockDoneId = event.eventId
+      this.shock = null
+      this.dirty = true
+      return null
+    }
+    return { panel: 'photon', position: event.spawnPosition, age, duration: SHOCKWAVE_DURATION }
   }
 
   // ---------------------------------------------------------------------------
@@ -325,14 +348,14 @@ export class GameLoop {
 
   play() {
     this.running = true
-    this.simPreviousTime = performance.now()
+    this.lastSimTime = performance.now()
     this.emitRunning()
     this.emitState(true)
   }
 
   pause() {
     this.running = false
-    this.frameAccumulator = 0
+    this.stepRemainder = 0
     this.emitRunning()
     this.emitState(true)
   }
@@ -344,45 +367,24 @@ export class GameLoop {
 
   step() {
     if (this.running) return
-    this.state = stepSimulation(this.state, FIXED_SIM_DT, this.getSimulationOptions())
+    this.setState(stepSimulation(this.state, FIXED_SIM_DT, this.getSimulationOptions()))
     this.emitState(true)
   }
 
   reset() {
-    this.state = getPreset(this.currentPresetId).state
-    this.trails.clear()
-    this.preview = null
-    this.dragId = null
-    this.dragPanel = null
-    this.hoverPanel = null
-    this.selectedId = null
-    this.shockwaveStartRef = null
-    this.completedShockwaveIdRef = null
-    this.emitState(true)
+    this.loadPreset(this.currentPresetId)
   }
 
   loadPreset(id: PresetId) {
     this.currentPresetId = id
-    this.state = getPreset(id).state
-    this.trails.clear()
-    this.preview = null
-    this.dragId = null
-    this.dragPanel = null
-    this.hoverPanel = null
-    this.selectedId = null
-    this.shockwaveStartRef = null
-    this.completedShockwaveIdRef = null
+    this.setState(getPreset(id).state)
+    this.resetInteraction()
     this.emitState(true)
   }
 
   clearAll() {
-    this.state = clearAll(this.state)
-    this.trails.clear()
-    this.preview = null
-    this.dragId = null
-    this.dragPanel = null
-    this.hoverPanel = null
-    this.selectedId = null
+    this.setState(clearAll(this.state))
+    this.resetInteraction()
     this.emitState(true)
   }
 
@@ -393,9 +395,10 @@ export class GameLoop {
   setShowTraces(v: boolean) {
     this.showTraces = v
     if (!v) this.trails.clear()
+    this.dirty = true
   }
 
-  setTool(tool: 'select' | 'electron' | 'positron' | 'photon') {
+  setTool(tool: Tool) {
     this.tool = tool
   }
 
@@ -408,18 +411,13 @@ export class GameLoop {
   }
 
   updateSelectedMomentum(id: string, momentum: Vec2) {
-    this.state = updateExcitationMomentum(this.state, id, momentum)
-    this.emitState(true)
-  }
-
-  moveSelected(id: string, world: Vec2) {
-    this.state = moveExcitation(this.state, id, { x: clamp01(world.x), y: clamp01(world.y) })
+    this.setState(updateExcitationMomentum(this.state, id, momentum))
     this.emitState(true)
   }
 
   select(id: string | null) {
     this.selectedId = id
-    this.state = selectExcitation(this.state, id)
+    this.setState(selectExcitation(this.state, id))
     this.emitState(true)
   }
 
@@ -431,125 +429,95 @@ export class GameLoop {
   // Pointer events
   // ---------------------------------------------------------------------------
 
-  private resolvePointer(clientX: number, clientY: number): {
-    panel: SlabKey
-    world: Vec2
-    hitId: string | null
-  } | null {
-    if (!this.container) return null
+  private resolvePointer(clientX: number, clientY: number) {
+    if (!this.container || !this.layout) return null
     const rect = this.container.getBoundingClientRect()
     const x = clientX - rect.left
     const y = clientY - rect.top
-    const layout = buildStageLayout(rect.width, rect.height)
-    const panel = pickSlab(y, layout)
+    const panel = pickSlab(y, this.layout)
     if (!panel) return null
-    const slab = panel === 'electron' ? layout.slabs.electron : layout.slabs.photon
-    const world = unproject(x, y, slab, rect.width)
+    const world = unproject(x, y, this.layout.slabs[panel], this.layout.width)
     if (!world) return { panel, world: { x: 0, y: 0 }, hitId: null }
-    if (!this.projectedParticles.length) return { panel, world, hitId: null }
+
     let best: { id: string; d2: number } | null = null
     for (const p of this.projectedParticles) {
       if (p.panel !== panel) continue
       const dx = p.x - x
       const dy = p.y - y
       const d2 = dx * dx + dy * dy
-      if (d2 <= (p.radius + 8) * (p.radius + 8)) {
-        if (!best || d2 < best.d2) best = { id: p.id, d2 }
-      }
+      const reach = p.radius + PICK_SLOP_PX
+      if (d2 <= reach * reach && (!best || d2 < best.d2)) best = { id: p.id, d2 }
     }
     return { panel, world, hitId: best?.id ?? null }
   }
 
   onPointerDown(clientX: number, clientY: number) {
-    const resolved = this.resolvePointer(clientX, clientY)
-    if (!resolved) return
+    const hit = this.resolvePointer(clientX, clientY)
+    if (!hit) return
 
-    if (resolved.hitId) {
-      this.state = selectExcitation(this.state, resolved.hitId)
-      this.selectedId = resolved.hitId
-      this.dragId = resolved.hitId
-      this.dragPanel = resolved.panel
+    if (hit.hitId) {
+      this.selectedId = hit.hitId
+      this.dragId = hit.hitId
       this.preview = null
+      this.setState(selectExcitation(this.state, hit.hitId))
       this.emitState(true)
       return
     }
 
-    if (this.tool === 'select') {
-      this.state = selectExcitation(this.state, null)
-      this.selectedId = null
-      this.emitState(true)
-      return
-    }
-
-    if (!canSpawnInPanel(this.tool, resolved.panel)) {
-      this.state = selectExcitation(this.state, null)
-      this.selectedId = null
-      this.emitState(true)
-      return
-    }
-
-    const p: DragPreview = { panel: resolved.panel, start: resolved.world, end: resolved.world }
-    this.state = selectExcitation(this.state, null)
-    this.preview = p
-    this.dragId = null
-    this.dragPanel = null
     this.selectedId = null
+    this.dragId = null
+    this.setState(selectExcitation(this.state, null))
+    if (this.tool !== 'select' && canSpawnInPanel(this.tool, hit.panel)) {
+      this.preview = { panel: hit.panel, start: hit.world, end: hit.world }
+    }
     this.emitState(true)
   }
 
   onPointerMove(clientX: number, clientY: number) {
-    const resolved = this.resolvePointer(clientX, clientY)
-    this.hoverPanel = resolved?.panel ?? null
-
-    if (this.dragId && this.dragPanel) {
-      const resolved = this.resolvePointer(clientX, clientY)
-      if (resolved) {
-        this.state = moveExcitation(this.state, this.dragId, {
-          x: clamp01(resolved.world.x),
-          y: clamp01(resolved.world.y)
-        })
-        this.emitState(true)
-      }
-      return
+    const hit = this.resolvePointer(clientX, clientY)
+    const hoverPanel = hit?.panel ?? null
+    if (hoverPanel !== this.hoverPanel) {
+      this.hoverPanel = hoverPanel
+      this.dirty = true
     }
+    if (!hit) return
 
-    if (this.preview) {
-      const resolved = this.resolvePointer(clientX, clientY)
-      if (resolved && resolved.panel === this.preview.panel) {
-        this.preview = { ...this.preview, end: resolved.world }
-      }
-      return
+    if (this.dragId) {
+      this.setState(moveExcitation(this.state, this.dragId, hit.world))
+      this.emitState(true)
+    } else if (this.preview && hit.panel === this.preview.panel) {
+      this.preview = { ...this.preview, end: hit.world }
     }
   }
 
   onPointerUp(clientX: number, clientY: number) {
     if (this.dragId) {
       this.dragId = null
-      this.dragPanel = null
       return
     }
+    if (!this.preview || this.tool === 'select') return
 
-    if (this.preview) {
-      const active = this.preview
-      const resolved = this.resolvePointer(clientX, clientY)
-      const endWorld = resolved && resolved.panel === active.panel ? resolved.world : active.end
-      const p: DragPreview = { ...active, end: endWorld }
-      const m = momentumFromPreview(p)
-      const tiny = magnitude(m) < DRAG_ZERO_MAG
-      const spawnKind = spawnKindForTool(this.tool as 'electron' | 'positron' | 'photon')
-      this.state = spawnExcitation(
+    const active = this.preview
+    const hit = this.resolvePointer(clientX, clientY)
+    const end = hit && hit.panel === active.panel ? hit.world : active.end
+    const momentum = momentumFromPreview({ ...active, end })
+    this.setState(
+      spawnExcitation(
         this.state,
-        spawnKind,
+        spawnKindFor(this.tool),
         active.panel,
-        { x: clamp01(active.start.x), y: clamp01(active.start.y) },
-        tiny ? { x: 0, y: 0 } : m
+        active.start,
+        magnitude(momentum) < DRAG_ZERO_MAG ? { x: 0, y: 0 } : momentum
       )
-      this.preview = null
-      this.emitState(true)
-    }
+    )
+    this.preview = null
+    this.emitState(true)
   }
 
   onPointerLeave() {
-    this.hoverPanel = null
+    if (this.hoverPanel !== null) {
+      this.hoverPanel = null
+      this.dirty = true
+    }
   }
 }

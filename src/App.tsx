@@ -375,7 +375,7 @@ export default function App() {
         <>
           {/* The stage */}
           <main className="main" id="main-content" tabIndex={-1}>
-            <FieldStage />
+            <FieldStage loop={gameLoop} />
 
             {/* Overlays: counts + help */}
             <div className="overlay overlay--tl" aria-hidden="true">

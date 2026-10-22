@@ -1,7 +1,14 @@
 import { useEffect, useRef } from 'react'
-import { gameLoop } from '../engine/gameLoopSingleton'
+import type { PointerEvent as ReactPointerEvent } from 'react'
+import type { GameLoop } from '../engine/gameLoop'
 
-export const FieldStage = () => {
+interface FieldStageProps {
+  loop: GameLoop
+  /** Read-only stages ignore the pointer, like the demo on the About page. */
+  interactive?: boolean
+}
+
+export const FieldStage = ({ loop, interactive = true }: FieldStageProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -10,53 +17,48 @@ export const FieldStage = () => {
     const container = containerRef.current
     if (!canvas || !container) return
 
-    gameLoop.mount(canvas, container)
-
-    const onResize = () => {
-      // Layout is computed inside the loop each frame from getBoundingClientRect
-    }
-    window.addEventListener('resize', onResize)
+    const observer = new ResizeObserver(([entry]) => {
+      loop.resize(entry.contentRect.width, entry.contentRect.height)
+    })
+    observer.observe(container)
+    loop.mount(canvas, container)
 
     return () => {
-      window.removeEventListener('resize', onResize)
-      gameLoop.unmount()
+      observer.disconnect()
+      loop.unmount()
     }
-  }, [])
+  }, [loop])
+
+  const pointerHandlers = interactive
+    ? {
+        onPointerDown: (e: ReactPointerEvent) => {
+          if (e.pointerType === 'mouse' && e.button !== 0) return
+          e.preventDefault()
+          canvasRef.current?.setPointerCapture(e.pointerId)
+          loop.onPointerDown(e.clientX, e.clientY)
+        },
+        onPointerMove: (e: ReactPointerEvent) => loop.onPointerMove(e.clientX, e.clientY),
+        onPointerUp: (e: ReactPointerEvent) => {
+          const canvas = canvasRef.current
+          if (canvas?.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId)
+          loop.onPointerUp(e.clientX, e.clientY)
+        },
+        onPointerLeave: () => loop.onPointerLeave(),
+        onPointerCancel: () => loop.onPointerLeave()
+      }
+    : {}
 
   return (
     <div
       ref={containerRef}
-      className="stage"
-      onPointerDown={(e) => {
-        if (e.pointerType === 'mouse' && e.button !== 0) return
-        e.preventDefault()
-        const canvas = canvasRef.current
-        if (canvas) canvas.setPointerCapture(e.pointerId)
-        gameLoop.onPointerDown(e.clientX, e.clientY)
-      }}
-      onPointerMove={(e) => {
-        gameLoop.onPointerMove(e.clientX, e.clientY)
-      }}
-      onPointerUp={(e) => {
-        const canvas = canvasRef.current
-        if (canvas && canvas.hasPointerCapture(e.pointerId)) {
-          canvas.releasePointerCapture(e.pointerId)
-        }
-        gameLoop.onPointerUp(e.clientX, e.clientY)
-      }}
-      onPointerLeave={() => {
-        gameLoop.onPointerLeave()
-      }}
-      onPointerCancel={() => {
-        gameLoop.onPointerLeave()
-      }}
+      className={interactive ? 'stage' : 'stage stage--static'}
+      {...pointerHandlers}
     >
       <canvas ref={canvasRef} className="stage-canvas" aria-label="Field stage">
-        Your browser cannot draw the field stage. It is a dark canvas split into two
-        horizontal slabs: the electron field on top, carrying electron and positron packets,
-        and the photon field below it. Each packet is a moving bump on its field, and an
-        overlay reports energy, momentum, and the conservation checks after an electron and
-        positron annihilate. The written explanation lower on this page covers the same ground.
+        Your browser cannot draw the field stage. It shows two horizontal slabs, the electron
+        field on top and the photon field below. Each packet is a moving bump on its field.
+        After an electron and a positron annihilate, a panel reports energy, momentum, and
+        the conservation checks. The text on this page covers the same ground.
       </canvas>
       <div className="stage-labels" aria-hidden="true">
         <span className="stage-label stage-label--electron">electron field</span>

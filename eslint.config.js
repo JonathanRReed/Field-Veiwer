@@ -28,7 +28,8 @@ export default [
         HTMLCanvasElement: 'readonly',
         HTMLDivElement: 'readonly',
         HTMLElement: 'readonly',
-        CanvasRenderingContext2D: 'readonly'
+        CanvasRenderingContext2D: 'readonly',
+        ResizeObserver: 'readonly'
       }
     },
     plugins: {
