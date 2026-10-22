@@ -1,5 +1,11 @@
 import { createRoot } from 'react-dom/client'
-import './index.css'
+import './styles/base.css'
+import './styles/shell.css'
+import './styles/stage.css'
+import './styles/cards.css'
+import './styles/settings.css'
+import './styles/about.css'
+import './styles/colophon.css'
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(<App />)

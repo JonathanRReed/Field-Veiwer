@@ -29,7 +29,11 @@ export default [
         HTMLDivElement: 'readonly',
         HTMLElement: 'readonly',
         CanvasRenderingContext2D: 'readonly',
-        ResizeObserver: 'readonly'
+        ResizeObserver: 'readonly',
+        EventTarget: 'readonly',
+        KeyboardEvent: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly'
       }
     },
     plugins: {

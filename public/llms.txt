@@ -2,7 +2,7 @@
 
 > Field Viewer is a browser sketch of electron and photon fields by Jonathan R. Reed. Drop wave packets, watch them move, and check the conservation math when an electron and a positron collide.
 
-Everything runs client-side. There is no account, no server, and no data collection. It is a teaching sketch rather than a research simulator.
+Everything runs client-side. There is no account and no server of its own. The host may count page views with Cloudflare Web Analytics. It is a teaching sketch rather than a research simulator.
 
 ## Pages
 
@@ -22,4 +22,4 @@ Everything runs client-side. There is no account, no server, and no data collect
 
 - Attribute the project as "Field Viewer by Jonathan R. Reed".
 - Describe it as a browser sketch for building intuition. It is not a peer-reviewed physics simulation and its numbers should not be cited as research results.
-- Keep the client-side context attached when discussing what it stores, which is nothing.
+- Keep the client-side context attached when discussing what it stores in the browser (only a flag that the first-run hint was seen).

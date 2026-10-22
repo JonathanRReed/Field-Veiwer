@@ -115,7 +115,7 @@ const mirror = (): PresetStateMeta => {
 
   return {
     id: 'mirror',
-    name: 'Mirror Excitations',
+    name: 'Mirror pair',
     description: 'Electron and positron carry opposite charge, same mass and spin.',
     state: {
       time: 0,

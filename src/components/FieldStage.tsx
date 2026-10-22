@@ -6,9 +6,13 @@ interface FieldStageProps {
   loop: GameLoop
   /** Read-only stages ignore the pointer, like the demo on the About page. */
   interactive?: boolean
+  /** Live packet counts shown beside each field name. */
+  counts?: { electron: number; photon: number }
 }
 
-export const FieldStage = ({ loop, interactive = true }: FieldStageProps) => {
+const packets = (n: number) => `${n} ${n === 1 ? 'packet' : 'packets'}`
+
+export const FieldStage = ({ loop, interactive = true, counts }: FieldStageProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -61,8 +65,14 @@ export const FieldStage = ({ loop, interactive = true }: FieldStageProps) => {
         the conservation checks. The text on this page covers the same ground.
       </canvas>
       <div className="stage-labels" aria-hidden="true">
-        <span className="stage-label stage-label--electron">electron field</span>
-        <span className="stage-label stage-label--photon">photon field</span>
+        <span className="stage-label stage-label--electron">
+          electron field
+          {counts ? <span className="stage-count">{packets(counts.electron)}</span> : null}
+        </span>
+        <span className="stage-label stage-label--photon">
+          photon field
+          {counts ? <span className="stage-count">{packets(counts.photon)}</span> : null}
+        </span>
       </div>
     </div>
   )

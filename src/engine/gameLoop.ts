@@ -156,11 +156,12 @@ export class GameLoop {
     }
     this.lastUIEmitTime = now
     this.uiDirty = false
-    const ui = this.getUIState()
+    const ui = this.snapshot()
     for (const handler of this.stateListeners) handler(ui)
   }
 
-  private getUIState(): GameLoopUIState {
+  /** Counts, selection, and the last annihilation, as the React side reads them. */
+  snapshot(): GameLoopUIState {
     let electrons = 0
     let photons = 0
     let selected: Excitation | null = null
@@ -345,6 +346,10 @@ export class GameLoop {
   // ---------------------------------------------------------------------------
   // Controls
   // ---------------------------------------------------------------------------
+
+  isRunning(): boolean {
+    return this.running
+  }
 
   play() {
     this.running = true

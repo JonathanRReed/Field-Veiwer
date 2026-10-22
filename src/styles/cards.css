@@ -1,0 +1,227 @@
+/* The selection readout and the annihilation event card. */
+
+.card {
+  position: absolute;
+  z-index: 5;
+  bottom: 16px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.card--selection {
+  left: 16px;
+  width: 280px;
+}
+
+.card--event {
+  right: 16px;
+  width: 340px;
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.card-head .swatch {
+  align-self: center;
+}
+
+.card-title {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.card-title--reaction {
+  font-size: 17px;
+}
+
+.card-aside {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.constants {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-soft);
+}
+
+.constants > div {
+  display: flex;
+  gap: 10px;
+}
+
+.constants dt {
+  width: 1em;
+  color: var(--text-muted);
+}
+
+.constants dd {
+  margin: 0;
+}
+
+.quantities {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 8px;
+}
+
+.quantity dt {
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.quantity dd {
+  margin: 0;
+}
+
+.momentum-line {
+  margin-top: 12px;
+  color: var(--text-soft);
+}
+
+.steering {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.steering label {
+  display: grid;
+  grid-template-columns: 5.5em 1fr 3em;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.steering output {
+  text-align: right;
+}
+
+/* Event card */
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+.ledger th,
+.ledger td {
+  padding: 4px 0;
+  text-align: right;
+  font-weight: 400;
+}
+
+.ledger thead th {
+  color: var(--text-muted);
+}
+
+.ledger tbody th {
+  text-align: left;
+  color: var(--text-muted);
+}
+
+.ledger tbody tr {
+  border-top: 1px solid var(--line);
+}
+
+.facts {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+  color: var(--text-soft);
+}
+
+.facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.facts dt {
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  text-align: right;
+}
+
+.checks {
+  display: grid;
+  gap: 3px;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.check {
+  display: flex;
+  gap: 8px;
+}
+
+.check-glyph {
+  width: 1em;
+  text-align: center;
+}
+
+.check--pass .check-glyph {
+  color: var(--ok);
+}
+
+.check--fail {
+  color: var(--warn);
+}
+
+.residual {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .card {
+    bottom: 8px;
+    padding: 10px 12px 12px;
+  }
+
+  .card--selection {
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+
+  .card--event {
+    right: 8px;
+    left: 8px;
+    width: auto;
+  }
+
+  .card--selection .constants,
+  .card--event .facts {
+    display: none;
+  }
+
+  .card--selection ~ .card--event,
+  .card ~ .hint--select {
+    display: none;
+  }
+
+  .card-head {
+    margin-bottom: 8px;
+  }
+}

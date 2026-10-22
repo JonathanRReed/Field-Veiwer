@@ -7,65 +7,93 @@ export interface PresetGuide {
   checks: string[]
 }
 
+export const PRESET_ORDER: PresetId[] = ['uniformity', 'mirror', 'annihilation']
+
 export const presetGuides: Record<PresetId, PresetGuide> = {
   uniformity: {
     title: 'Uniformity',
-    objective:
-      'Every electron is the same thing. Only position and momentum differ.',
+    objective: 'Every electron is the same thing. Only position and momentum differ.',
     steps: [
-      'Load Uniformity.',
-      'Pause and step through to inspect each packet.',
-      'Select different electrons and check their mass, charge, spin.',
+      'Load Uniformity and press pause.',
+      'Click two electrons and compare their readouts.',
       'Drop another electron and give it a different push.'
     ],
     checks: [
-      'All electrons share the same mass, charge, and spin.',
-      'Only momentum and position change between them.',
-      'No hidden "identity" tag, just state variables.'
+      'Mass, charge, and spin are identical.',
+      'Nothing tags one electron as different from another.'
     ]
   },
   mirror: {
-    title: 'Mirror Excitations',
-    objective: 'Electron and positron are the same field, opposite charge.',
+    title: 'Mirror pair',
+    objective: 'An electron and a positron are one field with opposite charge.',
     steps: [
-      'Load Mirror Excitations.',
-      'Check that both sit on the electron field.',
-      'Select each one and compare values in the inspector.',
-      'Charge is stored in the packet state, so which way it faces tells you nothing.'
+      'Load Mirror pair.',
+      'Notice that both packets sit on the electron field.',
+      'Click each one and compare the sign of q.'
     ],
     checks: [
-      'Opposite charges, equal magnitude.',
-      'Same mass and spin.',
-      'Both on the electron field.'
+      'Charges are equal and opposite.',
+      'Mass and spin match.'
     ]
   },
   annihilation: {
     title: 'Annihilation',
-    objective: 'Watch an electron and positron disappear and two photons appear.',
+    objective: 'An electron and a positron meet. Two photons leave.',
     steps: [
       'Load Annihilation and press play.',
-      'Wait for the overlap.',
-      'Read the conservation panel when they meet.',
-      'Try spawning photons by hand to see the difference.'
+      'Wait for the packets to overlap.',
+      'Read the event card.'
     ],
     checks: [
-      'The pair disappears from the electron field.',
-      'Two photons show up in the photon field.',
-      'Before and after energy and momentum match.'
+      'The pair leaves the electron field and two photons appear below.',
+      'Energy and momentum match before and after.'
     ]
   }
 }
 
-export const limitationStatements: string[] = [
-  'No Pauli exclusion, electrons can overlap freely.',
-  'No scattering, polarization, pair production, or higher-order processes.',
-  'No field equation is solved. Motion is deterministic and everything on screen is a rendered analogy.'
+export const claims: string[] = [
+  'The wavy surface is a drawing of the field, not a measurement of it.',
+  'Every electron is the same excitation of one shared field.',
+  'A positron is that field with the opposite charge.',
+  'Annihilation hands energy to photon excitations. Nothing passes through a "pure energy" state.',
+  'Energy and momentum are conserved in the math, and every event is checked.'
 ]
 
-export const requiredStatements: string[] = [
-  'The wavy surface is a drawing metaphor for the field.',
-  'Electrons are identical excitations of one shared field.',
-  'A positron is just the same field with opposite charge.',
-  'Annihilation moves energy into photon excitations; there is no “pure energy” step.',
-  'Energy and momentum are actually conserved in the math.'
+export const limitations: string[] = [
+  'No Pauli exclusion. Electrons overlap freely.',
+  'No scattering, polarization, pair production, or higher-order processes.',
+  'Annihilation fires by rule when an electron and a positron come within 0.075 units. It is not a probability.',
+  'No field equation is solved. Motion is deterministic, and the picture is an analogy.'
+]
+
+export interface Source {
+  author: string
+  year: number
+  title: string
+  venue: string
+  doi: string
+}
+
+export const sources: Source[] = [
+  {
+    author: 'Dirac, P. A. M.',
+    year: 1928,
+    title: 'The quantum theory of the electron',
+    venue: 'Proceedings of the Royal Society A, 117, 610–624',
+    doi: '10.1098/rspa.1928.0023'
+  },
+  {
+    author: 'Anderson, C. D.',
+    year: 1933,
+    title: 'The positive electron',
+    venue: 'Physical Review, 43, 491–494',
+    doi: '10.1103/PhysRev.43.491'
+  },
+  {
+    author: 'Feynman, R. P.',
+    year: 1949,
+    title: 'Space-time approach to quantum electrodynamics',
+    venue: 'Physical Review, 76, 769–789',
+    doi: '10.1103/PhysRev.76.769'
+  }
 ]

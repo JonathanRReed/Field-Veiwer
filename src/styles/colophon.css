@@ -1,0 +1,43 @@
+/* The static summary in index.html. It sits outside #root so crawlers that
+   skip JavaScript still read it. It stays quiet because the About page says it
+   all at length. */
+
+.page-explainer {
+  padding: 32px clamp(16px, 4vw, 48px) 48px;
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.page-explainer-inner {
+  width: min(1120px, 100%);
+  margin-inline: auto;
+}
+
+.page-explainer h2 {
+  margin-bottom: 8px;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.page-explainer p {
+  max-width: 52em;
+  margin: 0 0 16px;
+}
+
+.page-explainer ul {
+  display: grid;
+  gap: 6px;
+  max-width: 52em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.page-explainer a {
+  color: var(--text-soft);
+}

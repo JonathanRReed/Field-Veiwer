@@ -1,0 +1,167 @@
+/* The frame around the stage: top bar and dock. */
+
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--ink);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 48px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-name {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.presets,
+.sections {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sections {
+  margin-left: auto;
+}
+
+.presets button,
+.sections > button:not(.icon-button) {
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  transition: color 120ms, background-color 120ms;
+}
+
+.presets button:hover,
+.sections > button:not(.icon-button):hover {
+  color: var(--text);
+}
+
+.presets button[aria-pressed='true'],
+.sections > button[aria-current='page'] {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.dock {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.dock-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dock-speed {
+  justify-self: end;
+  gap: 20px;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  transition: color 120ms, border-color 120ms, background-color 120ms;
+}
+
+.tool:hover {
+  color: var(--text);
+}
+
+.tool[aria-pressed='true'] {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.clock {
+  min-width: 88px;
+  margin-left: 12px;
+  color: var(--text-soft);
+}
+
+.speed {
+  display: grid;
+  gap: 0;
+  width: 150px;
+  color: var(--text-muted);
+}
+
+.check-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 0 12px;
+    padding: 6px 8px 6px 12px;
+  }
+
+  .presets {
+    order: 3;
+    flex: 1 0 100%;
+    margin: 0 -4px;
+    overflow-x: auto;
+  }
+
+  .dock {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 6px 8px 8px;
+  }
+
+  .dock-tools {
+    justify-content: space-between;
+  }
+
+  .tool {
+    padding: 7px 8px;
+  }
+
+  .dock-transport {
+    justify-content: center;
+  }
+
+  .dock-speed {
+    justify-self: stretch;
+    justify-content: space-between;
+  }
+
+  .speed {
+    flex: 1;
+    width: auto;
+    max-width: 220px;
+  }
+}

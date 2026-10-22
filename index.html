@@ -54,7 +54,7 @@
     <!--
       dateModified below is a committed literal, so a rebuild of an unchanged
       commit emits the same date. It has to stay equal to <lastmod> for this URL
-      in public/sitemap.xml — change both in the same commit as the content.
+      in public/sitemap.xml. Change both in the same commit as the content.
       Editing this block also changes its CSP hash in public/_headers;
       `bun run test` fails until that hash is updated.
     -->
@@ -89,7 +89,7 @@
             "url": "https://fieldviewer.jonathanrreed.com/",
             "isAccessibleForFree": true,
             "inLanguage": "en-US",
-            "dateModified": "2026-08-21",
+            "dateModified": "2026-10-21",
             "genre": [
               "interactive physics visualization",
               "browser simulation",
@@ -146,106 +146,30 @@
         </p>
         <nav aria-label="Field Viewer sections">
           <a href="#main-content">Lab</a>
-          <a href="#about-field-viewer">What you are looking at</a>
+          <a href="#about-field-viewer">About</a>
         </nav>
-        <section>
-          <h2>What it does</h2>
-          <ul>
-            <li>Particles are wave packets spread out on fields.</li>
-            <li>Every electron is the same field excitation; only position and momentum differ.</li>
-            <li>Positrons are the same field with opposite charge.</li>
-            <li>When an electron and positron meet, they turn into two photons.</li>
-          </ul>
-        </section>
         <noscript>
           <h2>Without JavaScript</h2>
           <p>
-            The lab itself is a single HTML canvas driven by JavaScript, so it will not run
-            here. What you are missing is a dark stage split into two horizontal slabs: the
-            electron field on top, carrying teal electron packets and pink positron packets,
-            and the photon field below it, carrying amber photon packets. Each packet is drawn
-            as a moving bump on its field, and an overlay reports energy, momentum, and the
-            conservation checks after an electron and positron annihilate. The written
-            explanation below this section covers the same ground without the animation.
+            The lab is a single HTML canvas driven by JavaScript, so it will not run here.
+            It is a dark stage split into two horizontal slabs. The electron field on top
+            carries teal electron packets and pink positron packets. The photon field below
+            it carries amber photon packets. When an electron and a positron annihilate, a
+            card reports energy, momentum, and the conservation checks.
           </p>
         </noscript>
       </main>
     </div>
     <section class="page-explainer" id="about-field-viewer" aria-labelledby="explainer-title">
       <div class="page-explainer-inner">
-        <h2 id="explainer-title">What you are looking at</h2>
+        <h2 id="explainer-title">About Field Viewer</h2>
         <p>
-          Field Viewer draws electrons, positrons, and photons as wave packets on two
-          fields in the browser, and prints the conservation math when an electron and a
-          positron annihilate.
+          Field Viewer is a free browser sketch of electron and photon fields. Electrons,
+          positrons, and photons are wave packets. When an electron and a positron meet, the
+          app replaces them with two photons and shows the energy and momentum before and
+          after. It is a teaching sketch with stated simplifications, not a research
+          simulator. The About tab covers the controls, the model, and what it leaves out.
         </p>
-        <ul>
-          <li>
-            Two fields on one canvas: the electron field on the top slab, the photon field
-            below it.
-          </li>
-          <li>
-            Three kinds of packet (electron, positron, photon) and three presets
-            (Uniformity, Mirror pair, Annihilation).
-          </li>
-          <li>
-            Physics runs on a fixed 1/120 second step, up to 12 substeps a frame, with
-            units set so c = m<sub>e</sub> = 1.
-          </li>
-          <li>
-            An electron and a positron annihilate once they close to within 0.075 units, in
-            either collinear or center-of-momentum mode, with a 90° default scattering angle.
-          </li>
-          <li>
-            Each annihilation is checked for energy, momentum, and invariant mass squared.
-            A residual has to land under 1e-10 to pass.
-          </li>
-        </ul>
-        <p>
-          A particle here is a wave packet. The electron field covers the whole
-          upper slab of the canvas, and an electron is a localized bump in that field with a
-          position and a momentum. Every electron packet is built from the same template: same
-          mass, same charge, same spin label. Only position and momentum differ. That sounds
-          like a slogan until you can select two packets and read identical numbers off both,
-          which is the main thing I wanted this to show.
-        </p>
-        <p>
-          The lower slab is the photon field. A positron is the same electron field with the
-          charge flipped, so it sits on the top slab too. When an
-          electron and a positron overlap, the app deletes both, spawns two photon packets
-          below, and prints the bookkeeping: energy in and out, momentum in and out, the
-          invariant mass √s, and a pass or fail badge for each conservation check. If a badge
-          fails, that's a bug in my code.
-        </p>
-
-        <h3>Controls</h3>
-        <ul>
-          <li>Presets across the top load Uniformity, Mirror pair, or Annihilation.</li>
-          <li>
-            Pick a spawn tool in the bottom dock, or press 1 through 4 for select, electron,
-            positron, photon. Drag on a slab to launch a packet in that direction.
-          </li>
-          <li>Space plays and pauses. S steps one frame while paused. R resets the preset.</li>
-          <li>Click a packet to open the inspector and steer its momentum by hand.</li>
-          <li>The time slider slows everything down, and the traces toggle leaves trails.</li>
-          <li>
-            Settings switches annihilation between collinear and center-of-momentum mode, with
-            a scattering angle for the COM case.
-          </li>
-        </ul>
-
-        <h3>What does the simulation skip?</h3>
-        <p>
-          No field equations are integrated here, and there are no spinors. Motion is
-          deterministic and units are set so c = mₑ = 1. The About tab lists every other
-          simplification I know about, including Pauli exclusion and pair production.
-        </p>
-        <p>
-          Field Viewer is free to use in the browser. There is no account, no install, and
-          nothing to buy.
-        </p>
-
-        <h3>Sources</h3>
         <ul class="page-explainer-refs">
           <li>
             Dirac, P. A. M. (1928). The quantum theory of the electron.

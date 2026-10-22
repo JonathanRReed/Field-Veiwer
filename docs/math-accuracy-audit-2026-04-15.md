@@ -108,3 +108,9 @@ Benefit:
 2. Helicity state for photons
 3. Better coordinate-language in the UI
 4. Optional angular visualizations and 3D-aware diagnostics
+
+## Update 2026-10-21
+
+- Crossing detection now sweeps each step along the shortest wrapped displacement instead of interpolating between the start and the wrapped end position. Pairs that cross the field seam are no longer missed or mis-swept.
+- Photons born mid-step are advanced by the rest of the step, so they no longer lag the annihilation point.
+- Fast electrons are drawn contracted along their direction of motion. This is a drawing choice, not a measurement.
