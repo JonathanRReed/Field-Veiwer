@@ -85,3 +85,49 @@
 .settings .button {
   justify-self: start;
 }
+
+.angle-diagram {
+  width: 100%;
+  height: auto;
+  max-height: 96px;
+  padding: 6px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.angle-axis {
+  stroke: var(--line-strong);
+  stroke-dasharray: 2 4;
+}
+
+.angle-in line {
+  stroke-width: 2;
+}
+
+.angle-in--electron {
+  stroke: var(--electron);
+  fill: var(--electron);
+}
+
+.angle-in--positron {
+  stroke: var(--positron);
+  fill: var(--positron);
+}
+
+.angle-out {
+  stroke: var(--photon);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.angle-arc {
+  stroke: var(--text-muted);
+  fill: none;
+}
+
+.angle-label {
+  fill: var(--text-soft);
+  font: italic 12px var(--font-serif);
+}

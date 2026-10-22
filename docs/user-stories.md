@@ -106,6 +106,8 @@ These are in `tests/adversarial.test.ts`.
 | The event card could not be closed and covered the photon slab. | It has a close button and returns on the next event. |
 | The event card angle labels were ambiguous. | They read "angle between photons, lab" and "θ*, photon from incoming line, rest frame". |
 | The limits list did not say the readout wavelength is not drawn to scale. | It does now. |
+| The settings dialog showed a disabled angle slider in Collinear mode and never said what the angle measures. | The slider is hidden in Collinear mode. A small diagram shows the pair arriving head on and the photons leaving at θ*, measured from the electron. |
+| The About page never said why annihilation makes two photons. | It says one photon cannot carry both the energy and the momentum, and that a pair at rest gives two photons of 0.511 MeV each. |
 
 ### Known limits, not changed
 

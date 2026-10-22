@@ -138,19 +138,19 @@ export const AboutPage = ({ onOpenLab }: AboutPageProps) => (
       <h2 id="picture-title">Reading the picture</h2>
       <p>
         The top slab is the electron field. An electron is a localized bump in it, with a position
-        and a momentum. Every electron comes from the same template, with the same mass, charge,
-        and spin label. Click two of them and the readouts match except for position and momentum.
-        That is the point I wanted this page to make.
+        and a momentum. Every electron comes from the same template, so two readouts differ only in
+        position and momentum. That is the idea I wanted this page to show.
       </p>
       <p>
-        The bottom slab is the photon field. A positron lives on the top slab too, because it is
-        the electron field with the charge flipped. When an electron and a positron overlap, the
-        app removes both and creates two photon packets below. The event card then shows energy
-        and momentum before and after, the invariant mass √s, and one check per conserved
-        quantity. A check passes when its residual is under 10⁻¹⁰. If a check fails, that's a bug
-        in my code. These checks test the bookkeeping. I build the photons from the incoming
-        energy and momentum, so a pass shows the arithmetic is consistent. It does not show the
-        model discovered the law.
+        The bottom slab is the photon field. A positron lives on the top slab too, as the same
+        field with the charge flipped. When an electron and a positron overlap, the app removes
+        both and creates two photons below. The event card then compares energy and momentum
+        before and after, and a check passes when its residual is under 10⁻¹⁰.
+      </p>
+      <p>
+        These checks test my bookkeeping. I build the photons from the incoming energy and
+        momentum, so a pass shows the arithmetic is consistent. It does not show the model
+        discovered the law.
       </p>
       <ul className="plain-list">
         <li>
@@ -162,12 +162,16 @@ export const AboutPage = ({ onOpenLab }: AboutPageProps) => (
           Units are set so c = ħ = mₑ = 1. Energy is in units of mₑc² and momentum in units of
           mₑc. Physics steps 120 times per second at 1× speed.
         </li>
+        <li>
+          Two photons, not one. A single photon cannot carry away both the energy and the momentum
+          of the pair. A pair at rest sends out two photons with energy 1 each, which is 0.511 MeV.
+        </li>
         <li>Each field wraps at its edges, so a packet that leaves one side returns on the other.</li>
         <li>Fast electrons are drawn squeezed along their direction of motion.</li>
         <li>
-          Annihilation runs in one of two modes. Center of momentum sends the photons out back to
-          back in the pair's rest frame at a chosen angle, then boosts them to the lab. Collinear
-          sends both along the line of the total momentum.
+          Annihilation has two modes, set with the gear. Center of momentum sends the photons out
+          back to back in the pair's rest frame at an angle you choose, then boosts them to the
+          lab. Collinear sends both along the line of the total momentum.
         </li>
       </ul>
     </section>
