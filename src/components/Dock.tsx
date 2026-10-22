@@ -55,6 +55,7 @@ export const Dock = memo(
           type="button"
           className="icon-button icon-button--primary"
           aria-label={running ? 'Pause' : 'Play'}
+          title={running ? 'Pause (Space)' : 'Play (Space)'}
           aria-keyshortcuts="Space"
           onClick={() => loop.togglePlay()}
         >
@@ -64,6 +65,7 @@ export const Dock = memo(
           type="button"
           className="icon-button"
           aria-label="Step one tick"
+          title="Step one tick while paused (S)"
           aria-keyshortcuts="S"
           disabled={running}
           onClick={() => loop.step()}
@@ -74,12 +76,19 @@ export const Dock = memo(
           type="button"
           className="icon-button"
           aria-label="Reset preset"
+          title="Reset the preset (R)"
           aria-keyshortcuts="R"
           onClick={() => loop.reset()}
         >
           <ResetIcon />
         </button>
-        <button type="button" className="icon-button" aria-label="Clear all packets" onClick={() => loop.clearAll()}>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Clear all packets"
+          title="Clear all packets"
+          onClick={() => loop.clearAll()}
+        >
           <ClearIcon />
         </button>
         <Clock loop={loop} />

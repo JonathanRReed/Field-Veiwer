@@ -47,6 +47,18 @@
   color: var(--text-muted);
 }
 
+.card-summary {
+  margin-bottom: 10px;
+  color: var(--text-soft);
+  max-width: 34ch;
+}
+
+.card-note {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .constants {
   display: grid;
   gap: 2px;
@@ -212,7 +224,8 @@
   }
 
   .card--selection .constants,
-  .card--event .facts {
+  .card--event .facts,
+  .card-note {
     display: none;
   }
 

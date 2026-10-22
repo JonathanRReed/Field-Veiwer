@@ -173,7 +173,7 @@ describe('annihilation conservation rule', () => {
     expect(photonIds).toContain('4')
   })
 
-  test('records COM-frame annihilation geometry and helicity tags', () => {
+  test('records COM-frame annihilation geometry and leaves helicity undefined', () => {
     const initialState = {
       time: 0,
       nextId: 3,
@@ -225,9 +225,9 @@ describe('annihilation conservation rule', () => {
     expect(summary.mode).toBe('center-of-momentum')
     expect(summary.scattering?.targetScatteringAngleCm).toBeCloseTo(Math.PI / 2)
     expect(summary.scattering?.photonOpeningAngleCm).toBeCloseTo(Math.PI)
-    expect(summary.scattering?.photonHelicities).toEqual([1, -1])
-    expect(photons[0].helicity).toBe(1)
-    expect(photons[1].helicity).toBe(-1)
+    expect(summary.scattering?.photonHelicities).toEqual([null, null])
+    expect(photons[0].helicity).toBeNull()
+    expect(photons[1].helicity).toBeNull()
     expect(photonOneCom.energy).toBeCloseTo(photonTwoCom.energy)
     expect(photonOneCom.momentum.x + photonTwoCom.momentum.x).toBeCloseTo(0)
     expect(photonOneCom.momentum.y + photonTwoCom.momentum.y).toBeCloseTo(0)

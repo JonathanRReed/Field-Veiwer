@@ -685,7 +685,10 @@ export const computeAnnihilationScattering = (
     photonEnergyCm: [photonOneCom.energy, photonTwoCom.energy],
     photonHelicities,
     targetScatteringAngleCm,
-    scatteringAngleCm: computeOpeningAngle(electronCom.momentum, photonOneCom.momentum),
+    scatteringAngleCm: computeOpeningAngle(
+      incomingMomentumCm > EPSILON ? electronCom.momentum : STABLE_AXIS,
+      photonOneCom.momentum
+    ),
     photonOpeningAngleLab: computeOpeningAngle(photonOne.momentum, photonTwo.momentum),
     photonOpeningAngleCm: computeOpeningAngle(photonOneCom.momentum, photonTwoCom.momentum)
   }

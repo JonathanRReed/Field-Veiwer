@@ -66,7 +66,7 @@ For Cloudflare Pages or another static host, build with `bun run build` and publ
 | `src/types/`, `src/utils/` | Types, vector math, and formatting |
 | `tests/` | Math, crossing detection, rendering, preset, and SEO head tests |
 | `public/` | Headers, metadata, icons, social card, sitemap, and manifest |
-| `docs/` | Model notes and accuracy audit |
+| `docs/` | Model notes, accuracy audit, and user stories with the review log |
 
 ## License
 

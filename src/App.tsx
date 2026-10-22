@@ -133,6 +133,7 @@ export default function App() {
               type="button"
               className="icon-button"
               aria-label="Annihilation settings"
+              title="Annihilation settings"
               aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen((open) => !open)}
             >

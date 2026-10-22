@@ -30,6 +30,12 @@ export const EventCard = memo(({ summary }: { summary: AnnihilationSummary }) =>
         </span>
       </header>
 
+      <p className="card-summary">
+        {checks && !(checks.diagnostics.energyResidualPass && checks.diagnostics.momentumResidualPass)
+          ? 'The totals before and after do not match. That is a bug.'
+          : 'An electron and a positron met and became two photons. The totals before and after match.'}
+      </p>
+
       <table className="ledger">
         <thead>
           <tr>
@@ -105,6 +111,7 @@ export const EventCard = memo(({ summary }: { summary: AnnihilationSummary }) =>
           ) : null}
         </>
       ) : null}
+      <p className="card-note">Units: c = ħ = mₑ = 1.</p>
     </aside>
   )
 })

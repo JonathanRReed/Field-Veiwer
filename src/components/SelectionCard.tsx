@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { DRAG_MAX_MAG } from '../engine/gameLoop'
+import { MIN_PHOTON_MOMENTUM } from '../simulation/constants'
 import {
   computeBeta,
   computeDeBroglieWavelength,
@@ -62,7 +63,6 @@ export const SelectionCard = memo(({ excitation, onMomentumChange }: SelectionCa
   const momentum = excitation.momentum
   const magnitude = Math.hypot(momentum.x, momentum.y)
   const angle = toDegrees(momentum)
-  const helicity = excitation.helicity == null ? 'n/a' : excitation.helicity > 0 ? '+1' : '−1'
 
   return (
     <aside className="card card--selection" aria-label="Selected packet">
@@ -92,10 +92,10 @@ export const SelectionCard = memo(({ excitation, onMomentumChange }: SelectionCa
       <dl className="quantities">
         <Quantity symbol="E" label="Energy" value={formatNumber(computeEnergy(excitation), 3)} />
         <Quantity symbol="|p|" label="Momentum magnitude" value={formatNumber(magnitude, 3)} />
-        <Quantity symbol="K" label="Kinetic energy" value={formatNumber(computeKineticEnergy(excitation), 3)} />
-        {isPhoton ? (
-          <Quantity symbol="h" label="Helicity" value={helicity} />
-        ) : (
+        {isPhoton ? null : (
+          <Quantity symbol="K" label="Kinetic energy" value={formatNumber(computeKineticEnergy(excitation), 3)} />
+        )}
+        {isPhoton ? null : (
           <Quantity symbol="γ" label="Lorentz factor" value={Number.isFinite(gamma) ? formatNumber(gamma, 3) : '∞'} />
         )}
         <Quantity symbol="β" label="Speed as a fraction of c" value={formatNumber(computeBeta(excitation), 3)} />
@@ -129,20 +129,23 @@ export const SelectionCard = memo(({ excitation, onMomentumChange }: SelectionCa
           <span>momentum</span>
           <input
             type="range"
-            min={0}
+            min={isPhoton ? MIN_PHOTON_MOMENTUM : 0}
             max={DRAG_MAX_MAG}
             step={MOMENTUM_STEP}
             value={Math.min(DRAG_MAX_MAG, magnitude)}
             onChange={(event) =>
               onMomentumChange(
                 excitation.id,
-                fromPolar(clamp(Number(event.target.value), 0, DRAG_MAX_MAG), angle)
+                fromPolar(clamp(Number(event.target.value), isPhoton ? MIN_PHOTON_MOMENTUM : 0, DRAG_MAX_MAG), angle)
               )
             }
           />
           <output>{formatNumber(magnitude, 2)}</output>
         </label>
       </div>
+      <p className="card-note">
+        {isPhoton ? 'Polarization is not modeled. ' : ''}Units: c = ħ = mₑ = 1.
+      </p>
     </aside>
   )
 })

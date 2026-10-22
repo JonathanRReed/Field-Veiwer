@@ -5,9 +5,9 @@ import { FieldStage } from './FieldStage'
 import { SelectionCard } from './SelectionCard'
 
 const TARGET_HINTS: Record<Exclude<Tool, 'select'>, { slab: 'electron' | 'photon'; text: string }> = {
-  electron: { slab: 'electron', text: 'Drag on this field to launch an electron' },
-  positron: { slab: 'electron', text: 'Drag on this field to launch a positron' },
-  photon: { slab: 'photon', text: 'Drag on this field to fire a photon' }
+  electron: { slab: 'electron', text: 'Drag on this field to launch an electron. A longer drag is a faster one.' },
+  positron: { slab: 'electron', text: 'Drag on this field to launch a positron. A longer drag is a faster one.' },
+  photon: { slab: 'photon', text: 'Drag on this field to fire a photon. A longer drag is more energy.' }
 }
 
 interface LabStageProps {
@@ -41,7 +41,7 @@ export const LabStage = ({ loop, tool, showIntro, onFirstInteraction }: LabStage
       ) : (
         <p className="hint hint--select">
           {showIntro
-            ? 'Press Space to play. Pick a tool below, then drag on a field to launch a packet.'
+            ? 'Press Space to play. To add your own, pick Electron, Positron, or Photon below and drag on a field.'
             : 'Click a packet to read it. Drag it to move it.'}
         </p>
       )}

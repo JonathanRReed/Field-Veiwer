@@ -61,8 +61,11 @@ export const claims: string[] = [
 
 export const limitations: string[] = [
   'No Pauli exclusion. Electrons overlap freely.',
-  'No scattering, polarization, pair production, or higher-order processes.',
-  'Annihilation fires by rule when an electron and a positron come within 0.075 units. It is not a probability.',
+  'Annihilation fires by rule when an electron and a positron come within 0.075 units. In nature it happens with a probability that depends on energy and spin.',
+  'You choose the photon direction, 90 degrees from the incoming line by default. In nature it is random, and at high energy it favors the line the pair came in on.',
+  'Photon polarization is not modeled.',
+  'No scattering, pair production, or higher-order processes.',
+  'Space is a flat square that wraps at its edges, and positions are drawing coordinates.',
   'No field equation is solved. Motion is deterministic, and the picture is an analogy.'
 ]
 

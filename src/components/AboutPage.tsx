@@ -148,10 +148,20 @@ export const AboutPage = ({ onOpenLab }: AboutPageProps) => (
         app removes both and creates two photon packets below. The event card then shows energy
         and momentum before and after, the invariant mass √s, and one check per conserved
         quantity. A check passes when its residual is under 10⁻¹⁰. If a check fails, that's a bug
-        in my code.
+        in my code. These checks test the bookkeeping. I build the photons from the incoming
+        energy and momentum, so a pass shows the arithmetic is consistent. It does not show the
+        model discovered the law.
       </p>
       <ul className="plain-list">
-        <li>Units are set so c = mₑ = 1. Physics steps 120 times per second at 1× speed.</li>
+        <li>
+          A bump is an electron. A dip is a positron, the same field with the opposite charge.
+          Photons are ripples inside a bump, and the ripples tighten as the photon gains energy.
+        </li>
+        <li>The arrow on a packet points the way it moves. A longer arrow means more momentum.</li>
+        <li>
+          Units are set so c = ħ = mₑ = 1. Energy is in units of mₑc² and momentum in units of
+          mₑc. Physics steps 120 times per second at 1× speed.
+        </li>
         <li>Each field wraps at its edges, so a packet that leaves one side returns on the other.</li>
         <li>Fast electrons are drawn squeezed along their direction of motion.</li>
         <li>

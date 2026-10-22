@@ -1,4 +1,4 @@
-import { add, distance } from '../utils/vector'
+import { add, distance, magnitude, scale } from '../utils/vector'
 import type {
   AnnihilationSummary,
   Excitation,
@@ -10,7 +10,9 @@ import {
   DEFAULT_ANNIHILATION_DISTANCE,
   DEFAULT_ANNIHILATION_MODE,
   DEFAULT_COM_ANNIHILATION_SCATTERING_ANGLE,
-  PHOTON_MASS_SIM
+  MIN_PHOTON_MOMENTUM,
+  PHOTON_MASS_SIM,
+  STABLE_AXIS
 } from './constants'
 import {
   buildTwoPhotonMomentaForMode,
@@ -127,7 +129,8 @@ const createPhotonFromPair = (
     options.annihilationMode,
     options.annihilationScatteringAngle
   )
-  const photonHelicities = [1, -1] as const
+  // The two photons from e+e- -> gamma gamma are entangled, so neither has a definite helicity.
+  const photonHelicities = [null, null] as const
 
   const finalSpawn = {
     x: wrap01(spawnPosition.x),
@@ -453,6 +456,9 @@ export const spawnExcitation = (
   if (template.field !== field) {
     return state
   }
+  if (template.field === 'photon' && magnitude(momentum) < MIN_PHOTON_MOMENTUM) {
+    return state
+  }
 
   const newParticle = {
     ...makeExcitation({
@@ -480,6 +486,13 @@ export const spawnExcitation = (
   }
 }
 
+const withMinimumPhotonMomentum = (momentum: Vec2): Vec2 => {
+  const mag = magnitude(momentum)
+  if (mag >= MIN_PHOTON_MOMENTUM) return momentum
+  const direction = mag > 0 ? scale(momentum, 1 / mag) : STABLE_AXIS
+  return scale(direction, MIN_PHOTON_MOMENTUM)
+}
+
 export const updateExcitationMomentum = (
   state: SimulationState,
   id: string,
@@ -490,7 +503,7 @@ export const updateExcitationMomentum = (
     e.id === id
       ? {
           ...e,
-          momentum
+          momentum: e.field === 'photon' ? withMinimumPhotonMomentum(momentum) : momentum
         }
       : e
   )

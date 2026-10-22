@@ -601,8 +601,8 @@ const drawPackets = (
       const reach = 0.08 * Math.min(3, mag)
       const angle = Math.atan2(e.momentum.y, e.momentum.x)
       const tip = project(
-        clamp(e.position.x + Math.cos(angle) * reach, 0, 1),
-        clamp(e.position.y + Math.sin(angle) * reach, 0, 1),
+        e.position.x + Math.cos(angle) * reach,
+        e.position.y + Math.sin(angle) * reach,
         z,
         slab,
         width
