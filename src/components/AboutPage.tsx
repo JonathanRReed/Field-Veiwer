@@ -139,7 +139,7 @@ export const AboutPage = ({ onOpenLab }: AboutPageProps) => (
       <p>
         The top slab is the electron field. An electron is a localized bump in it, with a position
         and a momentum. Every electron comes from the same template, so two readouts differ only in
-        position and momentum. That is the idea I wanted this page to show.
+        position and momentum. The Uniformity preset is built to show that.
       </p>
       <p>
         The bottom slab is the photon field. A positron lives on the top slab too, as the same
@@ -224,10 +224,7 @@ export const AboutPage = ({ onOpenLab }: AboutPageProps) => (
 
     <section className="about-section about-author" aria-label="Author">
       <p>
-        I built this to see whether a physics demo could be honest about what it leaves out. It is
-        a teaching sketch, not a research tool.
-      </p>
-      <p>
+        Made by{' '}
         <a href="https://jonathanrreed.com/" rel="author external noopener noreferrer" target="_blank">
           Jonathan R. Reed
         </a>
