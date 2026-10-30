@@ -12,9 +12,9 @@
     "vite",
     "canvas"
   ],
-  "packageManager": "bun@1.4.3",
+  "packageManager": "bun@1.4.4",
   "engines": {
-    "bun": ">=1.4.3",
+    "bun": ">=1.4.4",
     "node": ">=22.12.0"
   },
   "type": "module",

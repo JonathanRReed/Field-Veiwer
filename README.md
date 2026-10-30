@@ -6,7 +6,7 @@ This is not a quantum field theory solver. It implements relativistic energy-mom
 
 ## Run locally
 
-Requires Bun 1.4.3+ (`packageManager` pins `bun@1.4.3`) and Node 22.12.0+.
+Requires Bun 1.4.4+ (`packageManager` pins `bun@1.4.4`) and Node 22.12.0+.
 
 ```bash
 bun install
